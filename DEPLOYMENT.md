@@ -12,28 +12,23 @@
 
 ## Step 1 — Push to GitHub
 
-### 1. Create a new repository on GitHub
-
-1. Go to [github.com/new](https://github.com/new)
-2. Repository name: `TradeTan` (or your choice)
-3. Keep it **Public** or **Private**
-4. Do **not** add README, .gitignore, or license (we already have them)
-5. Click **Create repository**
-
-### 2. Push from your machine
+The project is already committed locally. Run these commands:
 
 ```bash
-cd /Users/louiswalker/Desktop/TradeTan
+# 1. Log in to GitHub (one-time)
+gh auth login
 
-git init
-git add .
-git commit -m "Initial commit: TradeTan trading dashboard with backend scaffold"
-git branch -M main
+# 2. Create repo and push
+cd /Users/louiswalker/Desktop/TradeTan
+gh repo create TradeTan --public --source=. --remote=origin --push
+```
+
+Or manually: create a repo at [github.com/new](https://github.com/new), then:
+
+```bash
 git remote add origin https://github.com/YOUR_USERNAME/TradeTan.git
 git push -u origin main
 ```
-
-Replace `YOUR_USERNAME` with your GitHub username.
 
 ---
 
@@ -68,6 +63,10 @@ When the backend is live, add:
 ### 4. Deploy
 
 Click **Deploy**. Vercel will give you a URL like `https://tradetan.vercel.app`.
+
+**Already deployed:** https://tradetan-louiswalker240904-4165s-projects.vercel.app
+
+To connect GitHub for auto-deploys: Vercel Dashboard → tradetan project → Settings → Git → Connect Repository.
 
 ---
 
