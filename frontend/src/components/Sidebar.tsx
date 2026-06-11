@@ -31,7 +31,7 @@ export function Sidebar() {
             <Bot className="h-4 w-4 text-accent" />
           </div>
           <div>
-            <h1 className="text-sm font-semibold tracking-tight">TradeTan</h1>
+            <h1 className="text-sm font-semibold tracking-tight">TradeKyaMal</h1>
             <p className="text-[11px] text-text-muted">Design Thinking 3</p>
           </div>
         </div>

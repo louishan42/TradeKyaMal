@@ -10,7 +10,7 @@ import marketRoutes from './routes/market';
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
 const MONGODB_URI =
-  process.env.MONGODB_URI || 'mongodb://localhost:27017/tradetan';
+  process.env.MONGODB_URI || 'mongodb://localhost:27017/tradekyamal';
 
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
   .split(',')
@@ -30,7 +30,7 @@ app.use(
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'tradetan-backend' });
+  res.json({ status: 'ok', service: 'tradekyamal-backend' });
 });
 
 app.use('/api/data-collection', dataCollectionRoutes);

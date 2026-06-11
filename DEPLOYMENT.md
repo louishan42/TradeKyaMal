@@ -1,148 +1,129 @@
-# Deployment Guide — TradeTan
+# Deployment Guide — TradeKyaMal
 
-## Overview
+## Architecture
 
-| Service | Platform | When |
-|---------|----------|------|
-| Frontend (dashboard) | **Vercel** | Now |
-| Backend (API) | **Railway** or **Render** | Later |
-| Database | **MongoDB Atlas** | Required before backend deploy |
-
----
-
-## Step 1 — Push to GitHub
-
-The project is already committed locally. Run these commands:
-
-```bash
-# 1. Log in to GitHub (one-time)
-gh auth login
-
-# 2. Create repo and push
-cd /Users/louiswalker/Desktop/TradeTan
-gh repo create TradeTan --public --source=. --remote=origin --push
 ```
-
-Or manually: create a repo at [github.com/new](https://github.com/new), then:
-
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/TradeTan.git
-git push -u origin main
+Browser → Vercel (frontend) → Render (backend API) → MongoDB Atlas (database)
+                                      ↓
+                              External APIs (Finnhub, FRED, etc.)
 ```
 
 ---
 
-## Step 2 — Deploy Frontend to Vercel
+## Step 1 — MongoDB Atlas (Database)
 
-### 1. Import project
+Do this first — both local and production need it.
 
-1. Go to [vercel.com](https://vercel.com) and sign in with GitHub
-2. Click **Add New → Project**
-3. Import your `TradeTan` repository
-
-### 2. Configure build settings
-
-| Setting | Value |
-|---------|-------|
-| **Root Directory** | `frontend` |
-| **Framework Preset** | Next.js (auto-detected) |
-| **Build Command** | `npm run build` |
-| **Output Directory** | `.next` (default) |
-| **Install Command** | `npm install` |
-
-### 3. Environment variables (Vercel dashboard)
-
-For now, before the backend is deployed, you can skip this — the dashboard will load with fallback data.
-
-When the backend is live, add:
-
-| Name | Value |
-|------|-------|
-| `NEXT_PUBLIC_API_URL` | `https://your-backend-url.railway.app` |
-
-### 4. Deploy
-
-Click **Deploy**. Vercel will give you a URL like `https://tradetan.vercel.app`.
-
-**Already deployed:** https://tradetan-louiswalker240904-4165s-projects.vercel.app
-
-To connect GitHub for auto-deploys: Vercel Dashboard → tradetan project → Settings → Git → Connect Repository.
+1. Go to [mongodb.com/atlas](https://www.mongodb.com/atlas) → Create free **M0** cluster
+2. **Database Access** → Create user (save username + password)
+3. **Network Access** → Add IP → **Allow access from anywhere** (`0.0.0.0/0`)
+4. **Connect** → Drivers → Copy connection string:
+   ```
+   mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/tradekyamal
+   ```
 
 ---
 
-## Step 3 — Deploy Backend (Later)
+## Step 2 — Deploy Backend on Render
 
-Recommended: **Railway** (simple) or **Render** (free tier).
-
-### A. MongoDB Atlas (database — do this first)
-
-1. Go to [mongodb.com/atlas](https://www.mongodb.com/atlas)
-2. Create a free **M0 cluster**
-3. Create a database user (username + password)
-4. Network Access → Add IP → **Allow access from anywhere** (`0.0.0.0/0`)
-5. Copy the connection string:
-   ```
-   mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/tradetan
-   ```
-
-### B. Railway (backend)
-
-1. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub
-2. Select `TradeTan` repo
-3. Set **Root Directory** to `backend`
-4. Add environment variables:
+1. Go to [render.com](https://render.com) → Sign in with GitHub
+2. **New +** → **Blueprint** (or **Web Service**)
+3. Connect repo: `louishan42/TradeTan` (rename to TradeKyaMal on GitHub if desired)
+4. Render will detect `render.yaml` at the repo root
+5. Add environment variables in the Render dashboard:
 
 | Variable | Value |
 |----------|-------|
-| `PORT` | `4000` (Railway sets this automatically — use `$PORT` if needed) |
 | `MONGODB_URI` | Your Atlas connection string |
-| `CORS_ORIGIN` | `https://your-app.vercel.app` |
-| `FINNHUB_API_KEY` | Your Finnhub key (optional) |
+| `CORS_ORIGIN` | `https://your-vercel-url.vercel.app,http://localhost:3000` |
+| `FINNHUB_API_KEY` | Your Finnhub key |
+| `ALPHA_VANTAGE_API_KEY` | Your Alpha Vantage key |
+| `FRED_API_KEY` | Your FRED key |
+| `NEWSAPI_KEY` | Your NewsAPI key |
 
-5. Railway will assign a public URL like `https://tradetan-backend.up.railway.app`
+6. Click **Deploy** — Render gives you a URL like:
+   ```
+   https://tradekyamal-backend.onrender.com
+   ```
 
-### C. Connect frontend to backend
+7. Verify: open `https://tradekyamal-backend.onrender.com/api/health`
 
-In **Vercel** → Project → Settings → Environment Variables:
+> **Note:** Render free tier spins down after 15 min idle. First request may take ~30s to wake up.
 
-```
-NEXT_PUBLIC_API_URL = https://tradetan-backend.up.railway.app
-```
+### Manual Render setup (without Blueprint)
 
-Redeploy the frontend (Deployments → ⋯ → Redeploy).
+| Setting | Value |
+|---------|-------|
+| Root Directory | `backend` |
+| Build Command | `npm install && npm run build` |
+| Start Command | `npm start` |
+| Health Check Path | `/api/health` |
 
-### D. Update backend CORS
+---
 
-Set `CORS_ORIGIN` on Railway to your exact Vercel URL. Multiple origins can be comma-separated:
+## Step 3 — Connect Frontend (Vercel)
 
-```
-CORS_ORIGIN=https://tradetan.vercel.app,http://localhost:3000
+1. [Vercel Dashboard](https://vercel.com) → **tradetan** project → **Settings** → **Environment Variables**
+2. Add:
+
+| Name | Value |
+|------|-------|
+| `NEXT_PUBLIC_API_URL` | `https://tradekyamal-backend.onrender.com` |
+
+3. **Deployments** → Redeploy
+
+Also update `CORS_ORIGIN` on Render to match your exact Vercel URL.
+
+---
+
+## Step 4 — GitHub
+
+Repo: https://github.com/louishan42/TradeTan
+
+To rename the repo on GitHub:
+```bash
+gh repo rename TradeKyaMal
 ```
 
 ---
 
-## Step 4 — Verify
+## Data Fetch Flow (How It Works)
 
-| Check | URL |
-|-------|-----|
-| Frontend | `https://your-app.vercel.app` |
-| Backend health | `https://your-backend.railway.app/api/health` |
-| Data collection | Add a data point on the live dashboard |
+```
+1. User opens Data Collection page
+2. Selects provider (Finnhub, FRED, etc.) and enters symbol
+3. Frontend sends POST /api/fetch to Render backend
+4. Backend calls external API with your stored API key
+5. Backend saves results to MongoDB Atlas
+6. Frontend refreshes the data table
+```
+
+### Example API call
+
+```bash
+curl -X POST https://tradekyamal-backend.onrender.com/api/fetch \
+  -H "Content-Type: application/json" \
+  -d '{"provider": "finnhub", "symbol": "AAPL"}'
+```
+
+Response:
+```json
+{
+  "count": 4,
+  "entries": [
+    { "symbol": "AAPL", "source": "market_price", "label": "Current Price", "value": 198.5 }
+  ]
+}
+```
 
 ---
 
 ## Troubleshooting
 
-**Dashboard shows "Backend unavailable"**
-- `NEXT_PUBLIC_API_URL` is missing or wrong in Vercel env vars
-- Backend is not running or CORS is blocking requests
-
-**CORS errors in browser console**
-- Set `CORS_ORIGIN` on the backend to your exact Vercel URL (no trailing slash)
-
-**MongoDB connection failed on Railway**
-- Check Atlas IP whitelist includes `0.0.0.0/0`
-- Verify username/password in connection string (URL-encode special characters)
-
-**Vercel build fails**
-- Ensure **Root Directory** is set to `frontend`, not the repo root
+| Problem | Fix |
+|---------|-----|
+| "Backend unavailable" on Vercel | Set `NEXT_PUBLIC_API_URL` in Vercel env vars |
+| CORS error in browser | Add Vercel URL to `CORS_ORIGIN` on Render |
+| Render slow first load | Free tier cold start — wait ~30s |
+| "API key not configured" | Add keys in Render environment variables |
+| MongoDB connection failed | Check Atlas IP whitelist + connection string |

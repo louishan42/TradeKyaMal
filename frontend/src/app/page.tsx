@@ -112,7 +112,7 @@ export default async function OverviewPage() {
       <div className="mt-8 rounded-xl border border-border-subtle bg-surface-raised p-6">
         <h2 className="text-sm font-semibold">Platform Architecture</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
-          TradeTan separates concerns into three layers: a{' '}
+          TradeKyaMal separates concerns into three layers: a{' '}
           <span className="text-text-primary">data collection</span> layer that
           ingests market and macro data, three specialised{' '}
           <span className="text-text-primary">agents</span> (Almanac, Macro,
