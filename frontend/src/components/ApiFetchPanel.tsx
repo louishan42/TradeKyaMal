@@ -21,8 +21,10 @@ interface Provider {
   id: string;
   name: string;
   description: string;
+  sourceUrl?: string;
   envKey: string;
   configured: boolean;
+  requiresKey?: boolean;
   fields: ProviderField[];
 }
 
@@ -172,7 +174,7 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
         <div>
           <h3 className="text-sm font-semibold">Fetch from External APIs</h3>
           <p className="mt-1 text-xs text-text-muted">
-            Pull live quotes, indicators, and news from connected APIs — saved automatically to your collection.
+            Pull scorecard data from your three weekly bookmarks — futures, sectors, and calendar events.
           </p>
         </div>
         <Download className="h-4 w-4 text-text-muted" />
@@ -205,15 +207,31 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
       </div>
 
       {active && (
-        <div className="mt-3 flex items-center gap-2 text-xs">
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           {active.configured ? (
-            <span className="flex items-center gap-1 text-positive">
-              <CheckCircle2 className="h-3.5 w-3.5" /> API key configured
-            </span>
+            active.requiresKey === false || !active.envKey ? (
+              <span className="flex items-center gap-1 text-positive">
+                <CheckCircle2 className="h-3.5 w-3.5" /> No API key required
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-positive">
+                <CheckCircle2 className="h-3.5 w-3.5" /> API key configured
+              </span>
+            )
           ) : (
             <span className="flex items-center gap-1 text-warning">
               <XCircle className="h-3.5 w-3.5" /> Add {active.envKey} to backend/.env
             </span>
+          )}
+          {active.sourceUrl && (
+            <a
+              href={active.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline"
+            >
+              View source site
+            </a>
           )}
           <span className="text-text-muted">· {active.description}</span>
         </div>

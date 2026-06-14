@@ -1,11 +1,13 @@
-export type ProviderId = 'finnhub' | 'alpha_vantage' | 'fred' | 'newsapi';
+export type ProviderId = 'finviz' | 'yahoo_sectors' | 'tradingeconomics';
 
 export interface ProviderMeta {
   id: ProviderId;
   name: string;
   description: string;
+  sourceUrl: string;
   envKey: string;
   configured: boolean;
+  requiresKey: boolean;
   fields: ProviderField[];
 }
 
@@ -19,57 +21,52 @@ export interface ProviderField {
 export function getProviders(): ProviderMeta[] {
   return [
     {
-      id: 'finnhub',
-      name: 'Finnhub',
-      description: 'Real-time stock quotes',
-      envKey: 'FINNHUB_API_KEY',
-      configured: Boolean(process.env.FINNHUB_API_KEY),
-      fields: [
-        { name: 'symbol', label: 'Symbol', placeholder: 'AAPL', required: true },
-      ],
-    },
-    {
-      id: 'alpha_vantage',
-      name: 'Alpha Vantage',
-      description: 'Stock quotes and RSI technical indicator',
-      envKey: 'ALPHA_VANTAGE_API_KEY',
-      configured: Boolean(process.env.ALPHA_VANTAGE_API_KEY),
-      fields: [
-        { name: 'symbol', label: 'Symbol', placeholder: 'AAPL', required: true },
-        {
-          name: 'indicator',
-          label: 'Indicator',
-          placeholder: 'quote or rsi',
-          required: false,
-        },
-      ],
-    },
-    {
-      id: 'fred',
-      name: 'FRED',
-      description: 'US economic indicators (rates, CPI, GDP)',
-      envKey: 'FRED_API_KEY',
-      configured: Boolean(process.env.FRED_API_KEY),
+      id: 'finviz',
+      name: 'Finviz Futures',
+      description: 'Weekly futures performance scorecard (ES, NQ, CL, GC, etc.)',
+      sourceUrl: 'https://finviz.com/futures_performance',
+      envKey: '',
+      requiresKey: false,
+      configured: true,
       fields: [
         {
-          name: 'seriesId',
-          label: 'Series ID',
-          placeholder: 'FEDFUNDS or CPIAUCSL',
+          name: 'timeframe',
+          label: 'Timeframe',
+          placeholder: 'D',
           required: true,
         },
       ],
     },
     {
-      id: 'newsapi',
-      name: 'NewsAPI',
-      description: 'Financial news headlines for sentiment',
-      envKey: 'NEWSAPI_KEY',
-      configured: Boolean(process.env.NEWSAPI_KEY),
+      id: 'yahoo_sectors',
+      name: 'Yahoo Finance Sectors',
+      description: 'US sector performance via sector ETFs (matches Yahoo Sectors page)',
+      sourceUrl: 'https://finance.yahoo.com/sectors/',
+      envKey: '',
+      requiresKey: false,
+      configured: true,
       fields: [
         {
-          name: 'query',
-          label: 'Search Query',
-          placeholder: 'Apple stock OR AAPL',
+          name: 'sector',
+          label: 'Sector',
+          placeholder: 'all',
+          required: true,
+        },
+      ],
+    },
+    {
+      id: 'tradingeconomics',
+      name: 'TradingEconomics Calendar',
+      description: 'Economic calendar events for today',
+      sourceUrl: 'https://tradingeconomics.com/calendar',
+      envKey: 'TRADING_ECONOMICS_API_KEY',
+      requiresKey: true,
+      configured: Boolean(process.env.TRADING_ECONOMICS_API_KEY),
+      fields: [
+        {
+          name: 'country',
+          label: 'Country',
+          placeholder: 'united states',
           required: true,
         },
       ],

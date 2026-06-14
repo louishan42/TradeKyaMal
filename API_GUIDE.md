@@ -2,14 +2,19 @@
 
 ## Overview
 
-TradeKyaMal pulls live trading data from external financial APIs through the backend, stores it in MongoDB, and displays it on the dashboard.
+TradeKyaMal pulls **weekly scorecard data** from the three sources in your bookmarks, stores it in MongoDB, and displays it on the dashboard.
+
+| Bookmark | What it provides | API key needed? |
+|----------|------------------|-----------------|
+| [Finviz Futures Performance](https://finviz.com/futures_performance) | Futures % change (ES, NQ, CL, GC, etc.) | **No** |
+| [Yahoo Finance Sectors](https://finance.yahoo.com/sectors/) | US sector day returns (via sector ETFs) | **No** |
+| [TradingEconomics Calendar](https://tradingeconomics.com/calendar) | Today's economic events | **Yes — paid plan** |
 
 ```
-┌─────────────┐     POST /api/fetch      ┌─────────────┐     External API     ┌──────────┐
-│  Dashboard  │ ──────────────────────► │   Backend   │ ──────────────────► │ Finnhub  │
-│  (Vercel)   │                         │  (Render)   │                     │ FRED     │
-│             │ ◄────────────────────── │             │ ◄────────────────── │ etc.     │
-└─────────────┘     saved entries       └──────┬──────┘     raw data        └──────────┘
+┌─────────────┐     POST /api/fetch      ┌─────────────┐     Finviz / Yahoo / TE     ┌──────────┐
+│  Dashboard  │ ──────────────────────► │   Backend   │ ─────────────────────────► │  Source  │
+│  (Vercel)   │                         │  (Render)   │ ◄───────────────────────── │  sites   │
+└─────────────┘     saved entries       └──────┬──────┘     parsed scorecard data  └──────────┘
                                                  │
                                                  ▼
                                           ┌─────────────┐
@@ -20,61 +25,68 @@ TradeKyaMal pulls live trading data from external financial APIs through the bac
 
 ---
 
-## Step-by-Step Process
+## How to get API access from each site
 
-### 1. Get API keys (one-time)
+### 1. Finviz Futures — no API key
 
-| Provider | What you get | Free signup |
-|----------|-------------|-------------|
-| Finnhub | Stock price, high, low, open | https://finnhub.io/register |
-| Alpha Vantage | Stock quote or RSI indicator | https://www.alphavantage.co/support/#api-key |
-| FRED | Fed rate, CPI, GDP, unemployment | https://fred.stlouisfed.org/docs/api/api_key.html |
-| NewsAPI | Financial news headlines | https://newsapi.org/register |
+Finviz does **not** offer a free developer API. The dashboard reads the same data shown on [finviz.com/futures_performance](https://finviz.com/futures_performance) (embedded JSON on their page).
 
-### 2. Add keys to backend
+- **Free:** Works out of the box — no signup, no key
+- **Finviz Elite (paid):** Adds CSV export and official API access — see [finviz.com/elite](https://finviz.com/elite)
+- **Note:** Futures quotes on Finviz are delayed ~20 minutes
 
-**Local** — edit `backend/.env`:
+### 2. Yahoo Finance Sectors — no API key
+
+Yahoo shut down their official Finance API years ago. There is **no API key** to sign up for.
+
+The dashboard uses the same sector ETF prices Yahoo's [Sectors page](https://finance.yahoo.com/sectors/) is built on (XLK, XLF, XLE, etc.) via Yahoo's public chart endpoint.
+
+- **Free:** Works out of the box — no signup, no key
+- **Limitation:** Unofficial endpoint — may change without notice
+
+### 3. TradingEconomics Calendar — API key required
+
+This is the **only source that needs a real API key**.
+
+1. Go to [developer.tradingeconomics.com](https://developer.tradingeconomics.com) or [tradingeconomics.com/api/pricing.aspx](https://tradingeconomics.com/api/pricing.aspx)
+2. Subscribe to a plan (starts around $199/month for Standard)
+3. Copy your API key from your account dashboard
+4. Add to `backend/.env`:
+   ```env
+   TRADING_ECONOMICS_API_KEY=your_key_here
+   ```
+
+**Important:** The **Economic Calendar API** may require an **Enterprise** plan on top of the base subscription. Check your plan includes calendar access before relying on it for assignments.
+
+Docs: [TradingEconomics Calendar API](https://docs.tradingeconomics.com/economic_calendar/country/)
+
+---
+
+## Setup
+
+### Local backend `.env`
+
 ```env
-FINNHUB_API_KEY=your_key_here
-ALPHA_VANTAGE_API_KEY=your_key_here
-FRED_API_KEY=your_key_here
-NEWSAPI_KEY=your_key_here
 MONGODB_URI=mongodb://localhost:27017/tradekyamal
+TRADING_ECONOMICS_API_KEY=your_key_here   # optional — only needed for calendar
 ```
 
-**Production (Render)** — add the same keys in Render Dashboard → Environment.
+Finviz and Yahoo Sectors work without any keys.
 
-### 3. Start the backend
+### Production (Render)
 
-```bash
-cd backend
-npm install
-npm run dev
-```
+Add `TRADING_ECONOMICS_API_KEY` in Render Dashboard → Environment (if using calendar fetch).
 
-Backend runs at `http://localhost:4000`
+---
 
-### 4. Use the dashboard
+## Using the dashboard
 
-1. Open `http://localhost:3000/data-collection`
-2. In **Fetch from External APIs**:
-   - Select a provider (e.g. Finnhub)
-   - Enter a symbol (e.g. `AAPL`)
-   - Click **Fetch & Save Data**
-3. Data appears in the **Collected Data** table below
-
-### 5. What happens behind the scenes
-
-```
-User clicks "Fetch & Save"
-    → Frontend: POST /api/fetch { provider: "finnhub", symbol: "AAPL" }
-    → Backend validates API key exists
-    → Backend calls https://finnhub.io/api/v1/quote?symbol=AAPL&token=KEY
-    → Backend parses response into data points (price, high, low, open)
-    → Backend saves each point to MongoDB
-    → Backend returns { count: 4, entries: [...] }
-    → Frontend adds entries to the table
-```
+1. Open `/data-collection`
+2. Select a provider:
+   - **Finviz Futures** → pick timeframe (Daily, Weekly, etc.) → **Fetch & Save**
+   - **Yahoo Sectors** → pick sector or "All Sectors" → **Fetch & Save**
+   - **TradingEconomics** → pick country → **Fetch & Save** (requires API key)
+3. View chart, table, and export JSON/CSV
 
 ---
 
@@ -86,60 +98,39 @@ User clicks "Fetch & Save"
 GET /api/fetch/providers
 ```
 
-Returns which APIs are configured (key present or missing).
-
-### Fetch and store data
+### Fetch and store
 
 ```
 POST /api/fetch
 Content-Type: application/json
 ```
 
-**Finnhub (stock quote):**
+**Finviz futures:**
 ```json
-{ "provider": "finnhub", "symbol": "AAPL" }
+{ "provider": "finviz", "timeframe": "W" }
 ```
 
-**Alpha Vantage (quote):**
+Timeframes: `D`, `W`, `M`, `Q`, `HY`, `Y`
+
+**Yahoo sectors (all):**
 ```json
-{ "provider": "alpha_vantage", "symbol": "AAPL", "indicator": "quote" }
+{ "provider": "yahoo_sectors", "sector": "all" }
 ```
 
-**Alpha Vantage (RSI):**
+**Yahoo sectors (single):**
 ```json
-{ "provider": "alpha_vantage", "symbol": "AAPL", "indicator": "rsi" }
+{ "provider": "yahoo_sectors", "sector": "technology" }
 ```
 
-**FRED (economic indicator):**
+**TradingEconomics calendar (today):**
 ```json
-{ "provider": "fred", "seriesId": "FEDFUNDS" }
-```
-
-Common FRED series: `FEDFUNDS` (Fed rate), `CPIAUCSL` (CPI), `UNRATE` (unemployment), `GDP`
-
-**NewsAPI (headlines):**
-```json
-{ "provider": "newsapi", "query": "Apple stock" }
+{ "provider": "tradingeconomics", "country": "united states" }
 ```
 
 ### View collected data
 
 ```
 GET /api/data-collection
-```
-
-### Manual entry
-
-```
-POST /api/data-collection
-Content-Type: application/json
-
-{
-  "symbol": "AAPL",
-  "source": "market_price",
-  "label": "Closing Price",
-  "value": 198.50
-}
 ```
 
 ---
@@ -150,7 +141,5 @@ Content-Type: application/json
 |------|-------|
 | Fetch route | `backend/src/routes/fetch.ts` |
 | Provider config | `backend/src/services/providers.ts` |
-| API call logic | `backend/src/services/fetchData.ts` |
-| MongoDB model | `backend/src/models/DataCollection.ts` |
+| Fetch logic | `backend/src/services/fetchData.ts` |
 | Dashboard UI | `frontend/src/components/ApiFetchPanel.tsx` |
-| Data collection page | `frontend/src/app/data-collection/page.tsx` |

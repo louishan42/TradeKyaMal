@@ -5,7 +5,7 @@
 ```
 Browser → Vercel (frontend) → Render (backend API) → MongoDB Atlas (database)
                                       ↓
-                              External APIs (Finnhub, FRED, etc.)
+                              Scorecard sources (Finviz, Yahoo, TradingEconomics)
 ```
 
 ---
@@ -36,10 +36,7 @@ Do this first — both local and production need it.
 |----------|-------|
 | `MONGODB_URI` | Your Atlas connection string |
 | `CORS_ORIGIN` | `https://your-vercel-url.vercel.app,http://localhost:3000` |
-| `FINNHUB_API_KEY` | Your Finnhub key |
-| `ALPHA_VANTAGE_API_KEY` | Your Alpha Vantage key |
-| `FRED_API_KEY` | Your FRED key |
-| `NEWSAPI_KEY` | Your NewsAPI key |
+| `TRADING_ECONOMICS_API_KEY` | *(Optional)* Only if using calendar fetch |
 
 6. Click **Deploy** — Render gives you a URL like:
    ```
@@ -91,11 +88,11 @@ gh repo rename TradeKyaMal
 
 ```
 1. User opens Data Collection page
-2. Selects provider (Finnhub, FRED, etc.) and enters symbol
+2. Selects provider (Finviz Futures, Yahoo Sectors, or TradingEconomics)
 3. Frontend sends POST /api/fetch to Render backend
-4. Backend calls external API with your stored API key
+4. Backend fetches from the scorecard source (Finviz/Yahoo need no key; TradingEconomics uses your API key)
 5. Backend saves results to MongoDB Atlas
-6. Frontend refreshes the data table
+6. Frontend refreshes the chart and data table
 ```
 
 ### Example API call
@@ -103,15 +100,15 @@ gh repo rename TradeKyaMal
 ```bash
 curl -X POST https://tradekyamal-backend.onrender.com/api/fetch \
   -H "Content-Type: application/json" \
-  -d '{"provider": "finnhub", "symbol": "AAPL"}'
+  -d '{"provider": "finviz", "timeframe": "W"}'
 ```
 
 Response:
 ```json
 {
-  "count": 4,
+  "count": 49,
   "entries": [
-    { "symbol": "AAPL", "source": "market_price", "label": "Current Price", "value": 198.5 }
+    { "symbol": "ES", "source": "market_price", "label": "S&P 500 E-Mini — Weekly %", "value": 1.2 }
   ]
 }
 ```
@@ -125,5 +122,5 @@ Response:
 | "Backend unavailable" on Vercel | Set `NEXT_PUBLIC_API_URL` in Vercel env vars |
 | CORS error in browser | Add Vercel URL to `CORS_ORIGIN` on Render |
 | Render slow first load | Free tier cold start — wait ~30s |
-| "API key not configured" | Add keys in Render environment variables |
+| "API key not configured" | Add `TRADING_ECONOMICS_API_KEY` on Render (only needed for calendar) |
 | MongoDB connection failed | Check Atlas IP whitelist + connection string |

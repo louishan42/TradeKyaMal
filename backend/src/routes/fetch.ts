@@ -6,11 +6,10 @@ import { fetchAndStore } from '../services/fetchData';
 const router = Router();
 
 const fetchSchema = z.object({
-  provider: z.enum(['finnhub', 'alpha_vantage', 'fred', 'newsapi']),
-  symbol: z.string().optional(),
-  seriesId: z.string().optional(),
-  query: z.string().optional(),
-  indicator: z.string().optional(),
+  provider: z.enum(['finviz', 'yahoo_sectors', 'tradingeconomics']),
+  timeframe: z.string().optional(),
+  sector: z.string().optional(),
+  country: z.string().optional(),
 });
 
 router.get('/providers', (_req: Request, res: Response) => {
@@ -26,9 +25,14 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     const provider = getProviders().find((p) => p.id === parsed.data.provider);
-    if (!provider?.configured) {
+    if (!provider) {
+      res.status(400).json({ error: 'Unknown provider' });
+      return;
+    }
+
+    if (provider.requiresKey && !provider.configured) {
       res.status(400).json({
-        error: `${provider?.name ?? parsed.data.provider} API key not configured. Add ${provider?.envKey} to backend/.env`,
+        error: `${provider.name} API key not configured. Add ${provider.envKey} to backend/.env`,
       });
       return;
     }

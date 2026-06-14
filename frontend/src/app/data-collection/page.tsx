@@ -16,10 +16,21 @@ interface Provider {
 }
 
 const SOURCE_INFO = [
-  { name: 'Finnhub', type: 'Real-time stock quotes', provider: 'finnhub' },
-  { name: 'Alpha Vantage', type: 'Quotes & RSI indicator', provider: 'alpha_vantage' },
-  { name: 'FRED', type: 'US economic indicators', provider: 'fred' },
-  { name: 'NewsAPI', type: 'Financial news headlines', provider: 'newsapi' },
+  {
+    name: 'Finviz Futures',
+    type: 'Futures performance scorecard',
+    provider: 'finviz',
+  },
+  {
+    name: 'Yahoo Sectors',
+    type: 'US sector day returns',
+    provider: 'yahoo_sectors',
+  },
+  {
+    name: 'TradingEconomics',
+    type: 'Economic calendar events',
+    provider: 'tradingeconomics',
+  },
 ];
 
 export default function DataCollectionPage() {
@@ -49,7 +60,7 @@ export default function DataCollectionPage() {
     <div>
       <PageHeader
         title="Data Collection"
-        description="Fetch live data from financial APIs, visualize trends, and export your dataset."
+        description="Fetch weekly scorecard data from Finviz, Yahoo Sectors, and TradingEconomics — visualize trends and export your dataset."
       />
 
       {error && (

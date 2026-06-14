@@ -3,45 +3,41 @@ export interface SymbolOption {
   label: string;
 }
 
-export const STOCK_SYMBOLS: SymbolOption[] = [
-  { value: 'AAPL', label: 'AAPL — Apple' },
-  { value: 'MSFT', label: 'MSFT — Microsoft' },
-  { value: 'GOOGL', label: 'GOOGL — Alphabet' },
-  { value: 'AMZN', label: 'AMZN — Amazon' },
-  { value: 'META', label: 'META — Meta Platforms' },
-  { value: 'TSLA', label: 'TSLA — Tesla' },
-  { value: 'NVDA', label: 'NVDA — NVIDIA' },
-  { value: 'JPM', label: 'JPM — JPMorgan Chase' },
-  { value: 'V', label: 'V — Visa' },
-  { value: 'WMT', label: 'WMT — Walmart' },
-  { value: 'JNJ', label: 'JNJ — Johnson & Johnson' },
-  { value: 'PG', label: 'PG — Procter & Gamble' },
-  { value: 'UNH', label: 'UNH — UnitedHealth' },
-  { value: 'HD', label: 'HD — Home Depot' },
-  { value: 'BAC', label: 'BAC — Bank of America' },
-  { value: 'XOM', label: 'XOM — Exxon Mobil' },
-  { value: 'DIS', label: 'DIS — Walt Disney' },
-  { value: 'NFLX', label: 'NFLX — Netflix' },
-  { value: 'AMD', label: 'AMD — Advanced Micro Devices' },
-  { value: 'INTC', label: 'INTC — Intel' },
+export const FUTURES_TIMEFRAMES: SymbolOption[] = [
+  { value: 'D', label: 'Daily' },
+  { value: 'W', label: 'Weekly' },
+  { value: 'M', label: 'Monthly' },
+  { value: 'Q', label: 'Quarterly' },
+  { value: 'HY', label: 'Half Year' },
+  { value: 'Y', label: 'Yearly' },
 ];
 
-export const FRED_SERIES: SymbolOption[] = [
-  { value: 'FEDFUNDS', label: 'FEDFUNDS — Fed Funds Rate' },
-  { value: 'CPIAUCSL', label: 'CPIAUCSL — CPI (Inflation)' },
-  { value: 'UNRATE', label: 'UNRATE — Unemployment Rate' },
-  { value: 'GDP', label: 'GDP — Gross Domestic Product' },
-  { value: 'DGS10', label: 'DGS10 — 10-Year Treasury Yield' },
-  { value: 'T10Y2Y', label: 'T10Y2Y — 10Y-2Y Spread' },
+export const YAHOO_SECTORS: SymbolOption[] = [
+  { value: 'all', label: 'All Sectors' },
+  { value: 'technology', label: 'Technology (XLK)' },
+  { value: 'financial_services', label: 'Financial Services (XLF)' },
+  { value: 'communication_services', label: 'Communication Services (XLC)' },
+  { value: 'consumer_cyclical', label: 'Consumer Cyclical (XLY)' },
+  { value: 'industrials', label: 'Industrials (XLI)' },
+  { value: 'healthcare', label: 'Healthcare (XLV)' },
+  { value: 'energy', label: 'Energy (XLE)' },
+  { value: 'consumer_defensive', label: 'Consumer Defensive (XLP)' },
+  { value: 'basic_materials', label: 'Basic Materials (XLB)' },
+  { value: 'real_estate', label: 'Real Estate (XLRE)' },
+  { value: 'utilities', label: 'Utilities (XLU)' },
 ];
 
-export const NEWS_QUERIES: SymbolOption[] = [
-  { value: 'Apple stock OR AAPL', label: 'AAPL — Apple' },
-  { value: 'Microsoft stock OR MSFT', label: 'MSFT — Microsoft' },
-  { value: 'Tesla stock OR TSLA', label: 'TSLA — Tesla' },
-  { value: 'NVIDIA stock OR NVDA', label: 'NVDA — NVIDIA' },
-  { value: 'Federal Reserve interest rates', label: 'Fed & interest rates' },
-  { value: 'US inflation economy', label: 'US inflation & economy' },
+export const TE_COUNTRIES: SymbolOption[] = [
+  { value: 'united states', label: 'United States' },
+  { value: 'united kingdom', label: 'United Kingdom' },
+  { value: 'euro area', label: 'Euro Area' },
+  { value: 'germany', label: 'Germany' },
+  { value: 'japan', label: 'Japan' },
+  { value: 'china', label: 'China' },
+  { value: 'canada', label: 'Canada' },
+  { value: 'australia', label: 'Australia' },
+  { value: 'india', label: 'India' },
+  { value: 'brazil', label: 'Brazil' },
 ];
 
 const SELECT_CLASS =
@@ -50,10 +46,9 @@ const SELECT_CLASS =
 export { SELECT_CLASS };
 
 export function getDefaultFieldValue(fieldName: string, _providerId: string): string {
-  if (fieldName === 'symbol') return STOCK_SYMBOLS[0]?.value ?? '';
-  if (fieldName === 'seriesId') return FRED_SERIES[0]?.value ?? '';
-  if (fieldName === 'query') return NEWS_QUERIES[0]?.value ?? '';
-  if (fieldName === 'indicator') return 'quote';
+  if (fieldName === 'timeframe') return FUTURES_TIMEFRAMES[0]?.value ?? 'D';
+  if (fieldName === 'sector') return YAHOO_SECTORS[0]?.value ?? 'all';
+  if (fieldName === 'country') return TE_COUNTRIES[0]?.value ?? 'united states';
   return '';
 }
 
@@ -61,8 +56,8 @@ export function getFieldOptions(
   fieldName: string,
   _providerId: string
 ): SymbolOption[] | null {
-  if (fieldName === 'symbol') return STOCK_SYMBOLS;
-  if (fieldName === 'seriesId') return FRED_SERIES;
-  if (fieldName === 'query') return NEWS_QUERIES;
+  if (fieldName === 'timeframe') return FUTURES_TIMEFRAMES;
+  if (fieldName === 'sector') return YAHOO_SECTORS;
+  if (fieldName === 'country') return TE_COUNTRIES;
   return null;
 }

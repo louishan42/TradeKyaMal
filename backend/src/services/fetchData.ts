@@ -3,10 +3,9 @@ import type { ProviderId } from './providers';
 
 export interface FetchParams {
   provider: ProviderId;
-  symbol?: string;
-  seriesId?: string;
-  query?: string;
-  indicator?: string;
+  timeframe?: string;
+  sector?: string;
+  country?: string;
 }
 
 export interface FetchedEntry {
@@ -17,200 +16,209 @@ export interface FetchedEntry {
   metadata?: Record<string, unknown>;
 }
 
-interface FinnhubQuote {
-  c: number;
-  d: number;
-  dp: number;
-  h: number;
-  l: number;
-  o: number;
-  pc: number;
-  t: number;
+const USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36';
+
+interface FinvizFutureRow {
+  ticker: string;
+  label: string;
+  group: string;
+  perf: number;
 }
 
-async function fetchFinnhub(symbol: string): Promise<FetchedEntry[]> {
-  const apiKey = process.env.FINNHUB_API_KEY;
-  if (!apiKey) throw new Error('FINNHUB_API_KEY not configured');
+const FINVIZ_TIMEFRAME_PARAMS: Record<string, string> = {
+  W: '?v=12',
+  M: '?v=13',
+  Q: '?v=14',
+  HY: '?v=15',
+  Y: '?v=16',
+};
 
-  const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`;
-  const res = await fetch(url);
-  const data = (await res.json()) as FinnhubQuote;
+const YAHOO_SECTOR_ETFS: Record<string, { etf: string; name: string }> = {
+  technology: { etf: 'XLK', name: 'Technology' },
+  financial_services: { etf: 'XLF', name: 'Financial Services' },
+  communication_services: { etf: 'XLC', name: 'Communication Services' },
+  consumer_cyclical: { etf: 'XLY', name: 'Consumer Cyclical' },
+  industrials: { etf: 'XLI', name: 'Industrials' },
+  healthcare: { etf: 'XLV', name: 'Healthcare' },
+  energy: { etf: 'XLE', name: 'Energy' },
+  consumer_defensive: { etf: 'XLP', name: 'Consumer Defensive' },
+  basic_materials: { etf: 'XLB', name: 'Basic Materials' },
+  real_estate: { etf: 'XLRE', name: 'Real Estate' },
+  utilities: { etf: 'XLU', name: 'Utilities' },
+};
 
-  if (!data.c) throw new Error(`No quote found for ${symbol}`);
-
-  return [
-    {
-      symbol,
-      source: 'market_price',
-      label: 'Current Price',
-      value: data.c,
-      metadata: { provider: 'finnhub', change: data.d, changePercent: data.dp },
-    },
-    {
-      symbol,
-      source: 'market_price',
-      label: 'Day High',
-      value: data.h,
-      metadata: { provider: 'finnhub' },
-    },
-    {
-      symbol,
-      source: 'market_price',
-      label: 'Day Low',
-      value: data.l,
-      metadata: { provider: 'finnhub' },
-    },
-    {
-      symbol,
-      source: 'market_price',
-      label: 'Open Price',
-      value: data.o,
-      metadata: { provider: 'finnhub' },
-    },
-  ];
+interface YahooChartMeta {
+  regularMarketPrice?: number;
+  chartPreviousClose?: number;
+  shortName?: string;
+  longName?: string;
 }
 
-async function fetchAlphaVantage(
-  symbol: string,
-  indicator = 'quote'
-): Promise<FetchedEntry[]> {
-  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
-  if (!apiKey) throw new Error('ALPHA_VANTAGE_API_KEY not configured');
-
-  if (indicator === 'rsi') {
-    const url = `https://www.alphavantage.co/query?function=RSI&symbol=${symbol}&interval=daily&time_period=14&series_type=close&apikey=${apiKey}`;
-    const res = await fetch(url);
-    const data = (await res.json()) as Record<string, Record<string, { RSI: string }>>;
-
-    const series = data['Technical Analysis: RSI'];
-    if (!series) {
-      const msg = (data as { Note?: string; Information?: string }).Note ||
-        (data as { Information?: string }).Information;
-      throw new Error(msg || 'RSI data unavailable — check API rate limit');
-    }
-
-    const latest = Object.entries(series)[0];
-    return [
-      {
-        symbol,
-        source: 'technical_indicator',
-        label: 'RSI (14-day)',
-        value: parseFloat(latest[1].RSI),
-        metadata: { provider: 'alpha_vantage', date: latest[0] },
-      },
-    ];
-  }
-
-  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`;
-  const res = await fetch(url);
-  const data = (await res.json()) as Record<string, Record<string, string>>;
-
-  const quote = data['Global Quote'];
-  if (!quote || !quote['05. price']) {
-    const msg = (data as { Note?: string; Information?: string }).Note ||
-      (data as { Information?: string }).Information;
-    throw new Error(msg || `No quote found for ${symbol}`);
-  }
-
-  return [
-    {
-      symbol,
-      source: 'market_price',
-      label: 'Current Price',
-      value: parseFloat(quote['05. price']),
-      metadata: {
-        provider: 'alpha_vantage',
-        change: quote['09. change'],
-        changePercent: quote['10. change percent'],
-        volume: quote['06. volume'],
-      },
-    },
-    {
-      symbol,
-      source: 'market_price',
-      label: 'Volume',
-      value: parseInt(quote['06. volume'], 10),
-      metadata: { provider: 'alpha_vantage' },
-    },
-  ];
+interface TradingEconomicsEvent {
+  CalendarId?: string;
+  Date?: string;
+  Country?: string;
+  Category?: string;
+  Event?: string;
+  Actual?: string | number;
+  Previous?: string | number;
+  Forecast?: string | number;
+  Importance?: number;
 }
 
-async function fetchFred(seriesId: string): Promise<FetchedEntry[]> {
-  const apiKey = process.env.FRED_API_KEY;
-  if (!apiKey) throw new Error('FRED_API_KEY not configured');
+async function fetchFinviz(timeframe = 'D'): Promise<FetchedEntry[]> {
+  const suffix = FINVIZ_TIMEFRAME_PARAMS[timeframe] ?? '';
+  const url = `https://finviz.com/futures_performance.ashx${suffix}`;
 
-  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=1`;
-  const res = await fetch(url);
-  const data = (await res.json()) as {
-    observations?: { date: string; value: string }[];
-    error_message?: string;
-  };
+  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+  if (!res.ok) throw new Error(`Finviz request failed (${res.status})`);
 
-  if (data.error_message) throw new Error(data.error_message);
+  const html = await res.text();
+  const match = html.match(/FinvizInitFuturesPerformance\((\[[\s\S]*?\])\)/);
+  if (!match) throw new Error('Could not parse Finviz futures data');
 
-  const latest = data.observations?.[0];
-  if (!latest || latest.value === '.') {
-    throw new Error(`No data for FRED series ${seriesId}`);
-  }
+  const rows = JSON.parse(match[1]) as FinvizFutureRow[];
+  if (rows.length === 0) throw new Error('No futures data returned from Finviz');
 
-  return [
-    {
-      symbol: seriesId,
-      source: 'economic_indicator',
-      label: `${seriesId} Latest Value`,
-      value: parseFloat(latest.value),
-      metadata: { provider: 'fred', date: latest.date, seriesId },
-    },
-  ];
-}
+  const timeframeLabel =
+    timeframe === 'D' ? 'Daily' : `${timeframe} Performance`;
 
-async function fetchNewsApi(query: string): Promise<FetchedEntry[]> {
-  const apiKey = process.env.NEWSAPI_KEY;
-  if (!apiKey) throw new Error('NEWSAPI_KEY not configured');
-
-  const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&pageSize=5&apiKey=${apiKey}`;
-  const res = await fetch(url);
-  const data = (await res.json()) as {
-    status: string;
-    totalResults: number;
-    articles: { title: string; source: { name: string }; publishedAt: string }[];
-    message?: string;
-  };
-
-  if (data.status !== 'ok') {
-    throw new Error(data.message || 'NewsAPI request failed');
-  }
-
-  const symbol = query.split(' ')[0].toUpperCase().slice(0, 10);
-
-  return data.articles.map((article, i) => ({
-    symbol,
-    source: 'news_sentiment',
-    label: `Headline ${i + 1}`,
-    value: article.title,
+  return rows.map((row) => ({
+    symbol: row.ticker,
+    source: 'market_price',
+    label: `${row.label} — ${timeframeLabel} %`,
+    value: row.perf,
     metadata: {
-      provider: 'newsapi',
-      source: article.source.name,
-      publishedAt: article.publishedAt,
-      query,
+      provider: 'finviz',
+      group: row.group,
+      timeframe,
+      sourceUrl: 'https://finviz.com/futures_performance',
     },
   }));
 }
 
+async function fetchYahooSectorEtf(
+  sectorId: string,
+  etf: string,
+  name: string
+): Promise<FetchedEntry> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${etf}?interval=1d&range=5d`;
+  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+  if (!res.ok) throw new Error(`Yahoo Finance request failed for ${etf}`);
+
+  const data = (await res.json()) as {
+    chart?: { result?: { meta?: YahooChartMeta }[] };
+  };
+  const meta = data.chart?.result?.[0]?.meta;
+  if (!meta?.regularMarketPrice) {
+    throw new Error(`No sector data found for ${name} (${etf})`);
+  }
+
+  const price = meta.regularMarketPrice;
+  const previous = meta.chartPreviousClose ?? price;
+  const dayReturn = previous ? ((price - previous) / previous) * 100 : 0;
+
+  return {
+    symbol: etf,
+    source: 'market_price',
+    label: `${name} — Day Return %`,
+    value: Math.round(dayReturn * 100) / 100,
+    metadata: {
+      provider: 'yahoo_sectors',
+      sector: sectorId,
+      sectorName: name,
+      price,
+      previousClose: previous,
+      sourceUrl: 'https://finance.yahoo.com/sectors/',
+    },
+  };
+}
+
+async function fetchYahooSectors(sector = 'all'): Promise<FetchedEntry[]> {
+  if (sector === 'all') {
+    const entries = await Promise.all(
+      Object.entries(YAHOO_SECTOR_ETFS).map(([id, { etf, name }]) =>
+        fetchYahooSectorEtf(id, etf, name)
+      )
+    );
+    return entries;
+  }
+
+  const selected = YAHOO_SECTOR_ETFS[sector];
+  if (!selected) throw new Error(`Unknown sector: ${sector}`);
+
+  return [await fetchYahooSectorEtf(sector, selected.etf, selected.name)];
+}
+
+async function fetchTradingEconomics(country: string): Promise<FetchedEntry[]> {
+  const apiKey = process.env.TRADING_ECONOMICS_API_KEY;
+  if (!apiKey) throw new Error('TRADING_ECONOMICS_API_KEY not configured');
+
+  const today = new Date().toISOString().slice(0, 10);
+  const countrySlug = encodeURIComponent(country);
+  const url = `https://api.tradingeconomics.com/calendar/country/${countrySlug}/${today}/${today}?c=${apiKey}&f=json`;
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(
+      `TradingEconomics request failed (${res.status}). Check your API key and plan includes calendar access.`
+    );
+  }
+
+  const events = (await res.json()) as TradingEconomicsEvent[] | { message?: string };
+  if (!Array.isArray(events)) {
+    const message =
+      typeof events === 'object' && events && 'message' in events
+        ? String(events.message)
+        : 'Unexpected response from TradingEconomics';
+    throw new Error(message);
+  }
+
+  if (events.length === 0) {
+    throw new Error(`No calendar events for ${country} on ${today}`);
+  }
+
+  return events.slice(0, 25).map((event, index) => {
+    const value =
+      event.Actual ?? event.Forecast ?? event.Previous ?? 'Pending';
+    const numeric =
+      typeof value === 'number'
+        ? value
+        : typeof value === 'string' && value !== 'Pending' && !isNaN(Number(value))
+          ? Number(value)
+          : value;
+
+    return {
+      symbol: (event.Country ?? country).slice(0, 12).toUpperCase(),
+      source: 'economic_indicator',
+      label: event.Event ?? event.Category ?? `Event ${index + 1}`,
+      value: numeric,
+      metadata: {
+        provider: 'tradingeconomics',
+        calendarId: event.CalendarId,
+        date: event.Date,
+        country: event.Country ?? country,
+        category: event.Category,
+        actual: event.Actual,
+        forecast: event.Forecast,
+        previous: event.Previous,
+        importance: event.Importance,
+        sourceUrl: 'https://tradingeconomics.com/calendar',
+      },
+    };
+  });
+}
+
 export async function fetchFromProvider(params: FetchParams): Promise<FetchedEntry[]> {
   switch (params.provider) {
-    case 'finnhub':
-      if (!params.symbol) throw new Error('symbol is required');
-      return fetchFinnhub(params.symbol.toUpperCase());
-    case 'alpha_vantage':
-      if (!params.symbol) throw new Error('symbol is required');
-      return fetchAlphaVantage(params.symbol.toUpperCase(), params.indicator);
-    case 'fred':
-      if (!params.seriesId) throw new Error('seriesId is required');
-      return fetchFred(params.seriesId.toUpperCase());
-    case 'newsapi':
-      if (!params.query) throw new Error('query is required');
-      return fetchNewsApi(params.query);
+    case 'finviz':
+      return fetchFinviz(params.timeframe ?? 'D');
+    case 'yahoo_sectors':
+      return fetchYahooSectors(params.sector ?? 'all');
+    case 'tradingeconomics':
+      if (!params.country) throw new Error('country is required');
+      return fetchTradingEconomics(params.country);
     default:
       throw new Error('Unknown provider');
   }

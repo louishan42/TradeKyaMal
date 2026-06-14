@@ -64,18 +64,19 @@ Runs on **http://localhost:3000**
 | GET | `/api/data-collection/stats` | Dashboard statistics |
 | GET | `/api/agents` | List all agents |
 | GET | `/api/agents/:id` | Agent details |
-| GET | `/api/market/quote/:symbol` | Live quote (Finnhub) |
+| GET | `/api/market/quote/:symbol` | Live quote (Yahoo Finance) |
 
-## Data Fetch API Keys
+## Data Fetch Sources
 
-Add these to `backend/.env`:
+Your three weekly scorecard bookmarks:
 
-| Key | Provider | Sign up |
-|-----|----------|---------|
-| `FINNHUB_API_KEY` | Stock quotes | https://finnhub.io/register |
-| `ALPHA_VANTAGE_API_KEY` | Quotes & RSI | https://www.alphavantage.co/support/#api-key |
-| `FRED_API_KEY` | Economic data | https://fred.stlouisfed.org/docs/api/api_key.html |
-| `NEWSAPI_KEY` | News headlines | https://newsapi.org/register |
+| Source | Env key | Sign up |
+|--------|---------|---------|
+| [Finviz Futures](https://finviz.com/futures_performance) | None — works automatically | No signup needed |
+| [Yahoo Sectors](https://finance.yahoo.com/sectors/) | None — works automatically | No signup needed |
+| [TradingEconomics Calendar](https://tradingeconomics.com/calendar) | `TRADING_ECONOMICS_API_KEY` | [developer.tradingeconomics.com](https://developer.tradingeconomics.com) |
+
+See **[API_GUIDE.md](./API_GUIDE.md)** for full details on how each source works.
 
 ## Deployment
 
