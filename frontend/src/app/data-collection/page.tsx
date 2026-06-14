@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { ApiFetchPanel } from '@/components/ApiFetchPanel';
 import { DataCollectionTable } from '@/components/DataCollectionTable';
+import { ScorecardVisualizations } from '@/components/ScorecardVisualizations';
 import { DataCollectionChart } from '@/components/DataCollectionChart';
 import { DataExportBar } from '@/components/DataExportBar';
 import { apiFetch } from '@/lib/api';
@@ -74,11 +75,12 @@ export default function DataCollectionPage() {
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {SOURCE_INFO.map((source) => {
             const prov = providers.find((p) => p.id === source.provider);
-            const status = source.provider
-              ? prov?.configured
-                ? 'Active'
-                : 'Key needed'
-              : 'Active';
+            const status =
+              source.provider === 'tradingeconomics' && prov && !prov.configured
+                ? 'Optional'
+                : prov?.configured
+                  ? 'Active'
+                  : 'Key needed';
 
             return (
               <div
@@ -91,7 +93,11 @@ export default function DataCollectionPage() {
                 </div>
                 <span
                   className={`text-[10px] font-medium uppercase tracking-wider ${
-                    status === 'Active' ? 'text-positive' : 'text-warning'
+                    status === 'Active'
+                      ? 'text-positive'
+                      : status === 'Optional'
+                        ? 'text-text-muted'
+                        : 'text-warning'
                   }`}
                 >
                   {status}
@@ -123,6 +129,7 @@ export default function DataCollectionPage() {
           </div>
         ) : (
           <>
+            <ScorecardVisualizations entries={entries} />
             <DataCollectionChart entries={entries} />
             <DataCollectionTable
               entries={entries}

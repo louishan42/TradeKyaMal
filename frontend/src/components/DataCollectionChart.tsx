@@ -97,9 +97,9 @@ export function DataCollectionChart({ entries }: DataCollectionChartProps) {
     <div className="rounded-xl border border-border-subtle bg-surface-raised p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold">Value Trends</h3>
+          <h3 className="text-sm font-semibold">Collection History</h3>
           <p className="mt-0.5 text-xs text-text-muted">
-            Numeric data points plotted by collection time
+            Track how values change across repeated fetches over time
           </p>
         </div>
         <div className="w-full sm:w-48">
