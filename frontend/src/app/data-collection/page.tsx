@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { ApiFetchPanel } from '@/components/ApiFetchPanel';
-import { DataCollectionForm } from '@/components/DataCollectionForm';
 import { DataCollectionTable } from '@/components/DataCollectionTable';
+import { DataCollectionChart } from '@/components/DataCollectionChart';
+import { DataExportBar } from '@/components/DataExportBar';
 import { apiFetch } from '@/lib/api';
 import type { DataCollectionEntry } from '@/lib/types';
 
@@ -19,7 +20,6 @@ const SOURCE_INFO = [
   { name: 'Alpha Vantage', type: 'Quotes & RSI indicator', provider: 'alpha_vantage' },
   { name: 'FRED', type: 'US economic indicators', provider: 'fred' },
   { name: 'NewsAPI', type: 'Financial news headlines', provider: 'newsapi' },
-  { name: 'Manual Entry', type: 'Custom data points', provider: null },
 ];
 
 export default function DataCollectionPage() {
@@ -49,7 +49,7 @@ export default function DataCollectionPage() {
     <div>
       <PageHeader
         title="Data Collection"
-        description="Fetch live data from financial APIs or add entries manually."
+        description="Fetch live data from financial APIs, visualize trends, and export your dataset."
       />
 
       {error && (
@@ -93,30 +93,33 @@ export default function DataCollectionPage() {
 
       <ApiFetchPanel onEntriesFetched={addEntries} />
 
-      <div className="mt-6">
-        <DataCollectionForm onEntryAdded={(entry) => addEntries([entry])} />
-      </div>
+      <div className="mt-6 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">
+            Collected Data
+            {!loading && (
+              <span className="ml-2 text-xs font-normal text-text-muted">
+                ({entries.length} entries)
+              </span>
+            )}
+          </h3>
+          {!loading && <DataExportBar entries={entries} />}
+        </div>
 
-      <div className="mt-6">
-        <h3 className="mb-3 text-sm font-semibold">
-          Collected Data
-          {!loading && (
-            <span className="ml-2 text-xs font-normal text-text-muted">
-              ({entries.length} entries)
-            </span>
-          )}
-        </h3>
         {loading ? (
           <div className="rounded-xl border border-border-subtle bg-surface-raised p-12 text-center text-sm text-text-muted">
             Loading...
           </div>
         ) : (
-          <DataCollectionTable
-            entries={entries}
-            onEntryDeleted={(id) =>
-              setEntries((prev) => prev.filter((e) => e._id !== id))
-            }
-          />
+          <>
+            <DataCollectionChart entries={entries} />
+            <DataCollectionTable
+              entries={entries}
+              onEntryDeleted={(id) =>
+                setEntries((prev) => prev.filter((e) => e._id !== id))
+              }
+            />
+          </>
         )}
       </div>
     </div>

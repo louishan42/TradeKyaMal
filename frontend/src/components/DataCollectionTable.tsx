@@ -35,7 +35,7 @@ export function DataCollectionTable({
       <div className="rounded-xl border border-border-subtle bg-surface-raised p-12 text-center">
         <p className="text-sm text-text-secondary">No data collected yet</p>
         <p className="mt-1 text-xs text-text-muted">
-          Add your first data point using the form above.
+          Use the fetch panel above to pull data from an API.
         </p>
       </div>
     );

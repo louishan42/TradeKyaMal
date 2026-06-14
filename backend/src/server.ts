@@ -29,6 +29,20 @@ app.use(
 );
 app.use(express.json());
 
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'tradekyamal-backend',
+    message: 'API is running. Open the dashboard at http://localhost:3000',
+    endpoints: [
+      'GET  /api/health',
+      'GET  /api/fetch/providers',
+      'POST /api/fetch',
+      'GET  /api/data-collection',
+      'GET  /api/agents',
+    ],
+  });
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'tradekyamal-backend' });
 });

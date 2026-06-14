@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import { Download, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import {
+  SELECT_CLASS,
+  getDefaultFieldValue,
+  getFieldOptions,
+} from '@/lib/symbols';
 import type { DataCollectionEntry } from '@/lib/types';
 
 interface ProviderField {
@@ -25,12 +30,13 @@ interface ApiFetchPanelProps {
   onEntriesFetched: (entries: DataCollectionEntry[]) => void;
 }
 
-const FRED_PRESETS = [
-  { id: 'FEDFUNDS', label: 'Fed Funds Rate' },
-  { id: 'CPIAUCSL', label: 'CPI (Inflation)' },
-  { id: 'UNRATE', label: 'Unemployment Rate' },
-  { id: 'GDP', label: 'GDP' },
-];
+function buildDefaultFields(provider: Provider): Record<string, string> {
+  const defaults: Record<string, string> = {};
+  for (const field of provider.fields) {
+    defaults[field.name] = getDefaultFieldValue(field.name, provider.id);
+  }
+  return defaults;
+}
 
 export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -44,7 +50,10 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
     apiFetch<Provider[]>('/api/fetch/providers')
       .then((data) => {
         setProviders(data);
-        if (data.length > 0) setSelected(data[0].id);
+        if (data.length > 0) {
+          setSelected(data[0].id);
+          setFields(buildDefaultFields(data[0]));
+        }
       })
       .catch(() => setProviders([]));
   }, []);
@@ -52,8 +61,9 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
   const active = providers.find((p) => p.id === selected);
 
   function handleProviderChange(id: string) {
+    const provider = providers.find((p) => p.id === id);
     setSelected(id);
-    setFields({});
+    setFields(provider ? buildDefaultFields(provider) : {});
     setError('');
     setSuccess('');
   }
@@ -69,7 +79,8 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
     try {
       const body: Record<string, string> = { provider: active.id };
       for (const field of active.fields) {
-        if (fields[field.name]) body[field.name] = fields[field.name];
+        const value = fields[field.name] ?? getDefaultFieldValue(field.name, active.id);
+        if (value) body[field.name] = value;
       }
 
       const result = await apiFetch<{
@@ -81,12 +92,64 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
       });
 
       onEntriesFetched(result.entries);
-      setSuccess(`Fetched and saved ${result.count} data point${result.count !== 1 ? 's' : ''} from ${active.name}`);
+      setSuccess(
+        `Fetched and saved ${result.count} data point${result.count !== 1 ? 's' : ''} from ${active.name}`
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fetch failed');
     } finally {
       setLoading(false);
     }
+  }
+
+  function renderField(field: ProviderField) {
+    if (field.name === 'indicator') {
+      return (
+        <select
+          value={fields[field.name] || 'quote'}
+          onChange={(e) =>
+            setFields((prev) => ({ ...prev, [field.name]: e.target.value }))
+          }
+          className={SELECT_CLASS}
+        >
+          <option value="quote">Stock Quote</option>
+          <option value="rsi">RSI (14-day)</option>
+        </select>
+      );
+    }
+
+    const options = active ? getFieldOptions(field.name, active.id) : null;
+    if (options) {
+      return (
+        <select
+          value={fields[field.name] || options[0]?.value || ''}
+          onChange={(e) =>
+            setFields((prev) => ({ ...prev, [field.name]: e.target.value }))
+          }
+          required={field.required}
+          className={SELECT_CLASS}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    return (
+      <input
+        type="text"
+        value={fields[field.name] || ''}
+        onChange={(e) =>
+          setFields((prev) => ({ ...prev, [field.name]: e.target.value }))
+        }
+        placeholder={field.placeholder}
+        required={field.required}
+        className={SELECT_CLASS}
+      />
+    );
   }
 
   if (providers.length === 0) {
@@ -109,7 +172,7 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
         <div>
           <h3 className="text-sm font-semibold">Fetch from External APIs</h3>
           <p className="mt-1 text-xs text-text-muted">
-            Pull live data from financial APIs and save directly to your collection.
+            Pull live quotes, indicators, and news from connected APIs — saved automatically to your collection.
           </p>
         </div>
         <Download className="h-4 w-4 text-text-muted" />
@@ -121,7 +184,7 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
           <select
             value={selected}
             onChange={(e) => handleProviderChange(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
+            className={SELECT_CLASS}
           >
             {providers.map((p) => (
               <option key={p.id} value={p.id}>
@@ -136,49 +199,10 @@ export function ApiFetchPanel({ onEntriesFetched }: ApiFetchPanelProps) {
             <label className="mb-1 block text-xs text-text-secondary">
               {field.label}
             </label>
-            {field.name === 'indicator' ? (
-              <select
-                value={fields[field.name] || 'quote'}
-                onChange={(e) =>
-                  setFields((prev) => ({ ...prev, [field.name]: e.target.value }))
-                }
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
-              >
-                <option value="quote">Stock Quote</option>
-                <option value="rsi">RSI (14-day)</option>
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={fields[field.name] || ''}
-                onChange={(e) =>
-                  setFields((prev) => ({ ...prev, [field.name]: e.target.value }))
-                }
-                placeholder={field.placeholder}
-                required={field.required}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-accent"
-              />
-            )}
+            {renderField(field)}
           </div>
         ))}
       </div>
-
-      {active?.id === 'fred' && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {FRED_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() =>
-                setFields((prev) => ({ ...prev, seriesId: preset.id }))
-              }
-              className="rounded-full border border-border-subtle bg-surface px-3 py-1 text-[11px] text-text-secondary transition-colors hover:border-accent hover:text-accent"
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {active && (
         <div className="mt-3 flex items-center gap-2 text-xs">
