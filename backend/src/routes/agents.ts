@@ -88,6 +88,9 @@ async function saveAgentRun(
 
 router.get('/', async (_req: Request, res: Response) => {
   try {
+    const availableWeeks = await listEvidenceWeeks();
+    const displayWeek = getDefaultEvidenceWeek(availableWeeks);
+
     const agents = await Promise.all(
       AGENT_META.map(async (meta) => {
         const lastRun = await AgentRun.findOne({ agentId: meta.id })
@@ -96,15 +99,31 @@ router.get('/', async (_req: Request, res: Response) => {
 
         const output = lastRun?.output as { bias?: string; week?: number } | undefined;
 
+        const evidenceReport = await readEvidenceAgentReport(
+          meta.id,
+          lastRun?.week ?? displayWeek
+        );
+
+        let status = lastRun?.status ?? 'idle';
+        let summary =
+          lastRun?.summary ??
+          (output?.bias ? `${output.bias} · W${output.week ?? ''}`.trim() : null);
+
+        if (evidenceReport) {
+          const bias = extractBiasFromMarkdown(evidenceReport.markdown);
+          status = 'completed';
+          summary = bias
+            ? `${bias} · W${lastRun?.week ?? displayWeek} (from GitHub evidence)`
+            : `Report available · W${lastRun?.week ?? displayWeek}`;
+        }
+
         return {
           ...meta,
           scriptAvailable: isAgentScriptAvailable(meta.id as PipelineAgentId),
-          status: lastRun?.status ?? 'idle',
+          status,
           lastRun: lastRun?.completedAt ?? lastRun?.createdAt ?? null,
-          week: lastRun?.week ?? output?.week ?? null,
-          summary:
-            lastRun?.summary ??
-            (output?.bias ? `${output.bias} · W${output.week ?? ''}`.trim() : null),
+          week: lastRun?.week ?? output?.week ?? (evidenceReport ? displayWeek : null),
+          summary,
         };
       })
     );
@@ -118,15 +137,19 @@ router.get('/', async (_req: Request, res: Response) => {
 router.get('/pipeline/status', async (_req: Request, res: Response) => {
   const evidence = getEvidenceConfig();
   const availableWeeks = await listEvidenceWeeks();
+  const pythonAvailable = isPythonPipelineAvailable();
+  const allowServerRuns =
+    process.env.ALLOW_SERVER_AGENT_RUNS === 'true' &&
+    process.env.NODE_ENV !== 'production';
 
   res.json({
-    pythonAvailable: isPythonPipelineAvailable(),
+    pythonAvailable,
     projectWeek: getProjectWeek(),
     defaultWeek: getDefaultEvidenceWeek(availableWeeks),
     availableWeeks,
     githubConfigured: evidence.githubConfigured,
     evidenceRepo: evidence.githubRepo,
-    canRunAgentsOnServer: isPythonPipelineAvailable(),
+    canRunAgentsOnServer: pythonAvailable && allowServerRuns,
     canViewEvidenceFromGitHub: true,
     evidenceSource: 'public_github',
     agents: FULL_PIPELINE_ORDER.map((id) => ({
@@ -194,6 +217,18 @@ router.get('/pipeline/report/:agentId', async (req: Request, res: Response) => {
 
 router.post('/pipeline/run-all', async (req: Request, res: Response) => {
   try {
+    const allowServerRuns =
+      process.env.ALLOW_SERVER_AGENT_RUNS === 'true' &&
+      process.env.NODE_ENV !== 'production';
+
+    if (!allowServerRuns) {
+      res.status(503).json({
+        error:
+          'Run Full Pipeline is disabled on production. Use GitHub Actions in CP3405_Group_4 instead.',
+      });
+      return;
+    }
+
     const parsed = weekSchema.safeParse(req.body ?? {});
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.flatten() });
@@ -263,6 +298,18 @@ router.post('/pipeline/run-all', async (req: Request, res: Response) => {
 
 router.post('/:agentId/run', async (req: Request, res: Response) => {
   try {
+    const allowServerRuns =
+      process.env.ALLOW_SERVER_AGENT_RUNS === 'true' &&
+      process.env.NODE_ENV !== 'production';
+
+    if (!allowServerRuns) {
+      res.status(503).json({
+        error:
+          'Run Agent is disabled on production. Use GitHub Actions in CP3405_Group_4, then Reload on this page to view reports.',
+      });
+      return;
+    }
+
     const agentId = pipelineIdForAgent(String(req.params.agentId));
     if (!agentId || agentId === 'fetch') {
       res.status(400).json({ error: 'Use /api/evidence/run for weekly fetch' });
