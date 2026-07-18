@@ -1,4 +1,7 @@
 import { DataCollection } from '../models/DataCollection';
+import { getDefaultWeek, getProjectWeek } from './projectWeek';
+
+export { getDefaultWeek, getProjectWeek };
 
 const MACRO_COMMODITIES: Record<string, string> = {
   CL: 'WTI Crude Oil',
@@ -255,8 +258,3 @@ export async function buildEvidenceBundle(week: number): Promise<EvidenceFile[]>
   return files;
 }
 
-export function getDefaultWeek(): number {
-  const fromEnv = process.env.EVIDENCE_WEEK;
-  if (fromEnv && !isNaN(Number(fromEnv))) return Number(fromEnv);
-  return 24;
-}

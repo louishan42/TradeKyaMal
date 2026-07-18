@@ -1,7 +1,16 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export type AgentId =
+  | 'almanac'
+  | 'macro'
+  | 'technical'
+  | 'llm'
+  | 'final'
+  | 'fetch';
+
 export interface IAgentRun extends Document {
-  agentId: 'almanac' | 'macro' | 'technical';
+  agentId: AgentId;
+  week?: number;
   status: 'idle' | 'running' | 'completed' | 'error';
   summary?: string;
   output?: Record<string, unknown>;
@@ -14,9 +23,10 @@ const AgentRunSchema = new Schema<IAgentRun>(
   {
     agentId: {
       type: String,
-      enum: ['almanac', 'macro', 'technical'],
+      enum: ['almanac', 'macro', 'technical', 'llm', 'final', 'fetch'],
       required: true,
     },
+    week: { type: Number },
     status: {
       type: String,
       enum: ['idle', 'running', 'completed', 'error'],

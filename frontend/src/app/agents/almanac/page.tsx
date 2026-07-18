@@ -1,14 +1,18 @@
 import { PageHeader } from '@/components/PageHeader';
-import { AgentPlaceholder } from '@/components/AgentPlaceholder';
+import { AgentPipelinePanel } from '@/components/AgentPipelinePanel';
 
 export default function AlmanacAgentPage() {
   return (
     <div>
       <PageHeader
         title="Almanac Agent"
-        description="Seasonal and calendar-based trading pattern analysis."
+        description="Seasonal patterns, calendar events, and index momentum — automated R3 pipeline."
       />
-      <AgentPlaceholder agentId="almanac" />
+      <AgentPipelinePanel
+        agentId="almanac"
+        title="Almanac Agent (R3)"
+        description="Runs run_almanac_agent.py — fetches index/sector performance, Nasdaq calendar, seasonal patterns, and produces an ALMANAC BIAS."
+      />
     </div>
   );
 }

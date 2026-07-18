@@ -15,3 +15,5 @@ services:
         sync: false
       - key: TRADING_ECONOMICS_API_KEY
         sync: false
+      - key: GITHUB_REPO
+        value: wintwah-lwin/CP3405_Group_4

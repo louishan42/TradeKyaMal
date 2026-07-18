@@ -1,14 +1,18 @@
 import { PageHeader } from '@/components/PageHeader';
-import { AgentPlaceholder } from '@/components/AgentPlaceholder';
+import { AgentPipelinePanel } from '@/components/AgentPipelinePanel';
 
 export default function TechnicalAgentPage() {
   return (
     <div>
       <PageHeader
         title="Technical Agent"
-        description="Technical indicator and price action signal generation."
+        description="Weekly EMA structure, support/resistance, and breadth — automated R5 pipeline."
       />
-      <AgentPlaceholder agentId="technical" />
+      <AgentPipelinePanel
+        agentId="technical"
+        title="Technical Agent (R5)"
+        description="Runs run_technical_agent.py — analyses SPX, NDX, IWM weekly EMAs, generates charts, and outputs a FINAL TECHNICAL BIAS."
+      />
     </div>
   );
 }

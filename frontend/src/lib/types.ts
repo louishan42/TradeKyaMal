@@ -1,4 +1,4 @@
-export type AgentType = 'almanac' | 'macro' | 'technical';
+export type AgentType = 'almanac' | 'macro' | 'technical' | 'llm' | 'final';
 export type AgentStatus = 'idle' | 'running' | 'completed' | 'error';
 
 export interface Agent {
@@ -8,6 +8,52 @@ export interface Agent {
   status: AgentStatus;
   lastRun?: string | null;
   summary?: string | null;
+  week?: number | null;
+  scriptAvailable?: boolean;
+}
+
+export interface AgentPipelineReport {
+  filename: string;
+  markdown: string;
+  bias?: string;
+  repoPath?: string;
+  extras?: Record<string, string>;
+}
+
+export interface AgentReportResponse {
+  week: number;
+  source?: 'scripts_output' | 'public_github' | 'github' | 'local_repo';
+  report: AgentPipelineReport | null;
+  availableWeeks?: number[];
+  message?: string;
+}
+
+export interface AgentRunResponse {
+  week: number;
+  runId?: string;
+  bias?: string | null;
+  report?: {
+    filename: string;
+    markdown: string;
+    extras?: Record<string, string>;
+  } | null;
+  pipeline?: {
+    message: string;
+    stdout: string;
+  };
+}
+
+export interface PipelineStatus {
+  pythonAvailable: boolean;
+  projectWeek: number;
+  defaultWeek: number;
+  availableWeeks?: number[];
+  githubConfigured: boolean;
+  evidenceRepo: string;
+  canRunAgentsOnServer: boolean;
+  canViewEvidenceFromGitHub: boolean;
+  evidenceSource?: string;
+  agents: { id: string; scriptAvailable: boolean }[];
 }
 
 export type DataSourceType =

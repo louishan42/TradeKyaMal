@@ -43,7 +43,9 @@ app.get('/', (_req, res) => {
       'POST /api/evidence/run',
       'GET  /api/data-collection',
       'GET  /api/agents',
-      'POST /api/agents/macro/fetch-live',
+      'POST /api/agents/pipeline/run-all',
+      'POST /api/agents/:id/run',
+      'GET  /api/agents/pipeline/report/:agentId',
     ],
   });
 });

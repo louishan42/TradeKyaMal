@@ -23,7 +23,7 @@ async function getDashboardData() {
         totalDataPoints: 0,
         activeSymbols: 0,
         lastCollection: null,
-        agentCount: 3,
+        agentCount: 5,
       } as DashboardStats,
       agents: [] as Agent[],
       error: 'Backend unavailable — start the server to load live data.',
@@ -51,6 +51,12 @@ export default async function OverviewPage() {
       id: 'technical',
       name: 'Technical Agent',
       description: 'Price action and technical signal generation.',
+      status: 'idle',
+    },
+    {
+      id: 'llm',
+      name: 'LLM Integration',
+      description: 'OpenAI + Gemini synthesis and final prediction.',
       status: 'idle',
     },
   ];
@@ -102,7 +108,7 @@ export default async function OverviewPage() {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">
           Trading Agents
         </h2>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {displayAgents.map((agent) => (
             <AgentCard key={agent.id} agent={agent} />
           ))}
@@ -116,7 +122,7 @@ export default async function OverviewPage() {
           <span className="text-text-primary">data collection</span> layer that
           ingests market and macro data, three specialised{' '}
           <span className="text-text-primary">agents</span> (Almanac, Macro,
-          Technical) that analyse it, and this{' '}
+          Technical, LLM Integration) that analyse it, and this{' '}
           <span className="text-text-primary">dashboard</span> for monitoring
           and control. Start by collecting data, then wire each agent to
           produce signals.

@@ -9,6 +9,7 @@ import {
   TrendingUp,
   BarChart3,
   Calendar,
+  Sparkles,
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -18,6 +19,7 @@ const navItems = [
   { href: '/agents/almanac', label: 'Almanac Agent', icon: Calendar },
   { href: '/agents/macro', label: 'Macro Agent', icon: BarChart3 },
   { href: '/agents/technical', label: 'Technical Agent', icon: TrendingUp },
+  { href: '/agents/llm', label: 'LLM Integration', icon: Sparkles },
 ];
 
 export function Sidebar() {
