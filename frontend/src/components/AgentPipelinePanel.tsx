@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Play, RefreshCw, Zap } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
+import { fetchEvidenceReport, fetchPipelineStatus } from '@/lib/evidenceClient';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import type { AgentPipelineReport, AgentReportResponse, AgentRunResponse, PipelineStatus } from '@/lib/types';
 
@@ -51,16 +52,25 @@ export function AgentPipelinePanel({
       setAvailableWeeks(data.availableWeeks ?? []);
       setWeek(data.defaultWeek);
     } catch {
-      setStatus(null);
+      const fallback = await fetchPipelineStatus();
+      setStatus(fallback);
+      setAvailableWeeks(fallback.availableWeeks ?? []);
+      setWeek(fallback.defaultWeek);
     }
   }, []);
 
   const loadReport = useCallback(async (targetWeek: number) => {
     setError('');
     try {
-      const data = await apiFetch<AgentReportResponse>(
-        `/api/agents/pipeline/report/${agentId}?week=${targetWeek}`
-      );
+      let data: AgentReportResponse;
+      try {
+        data = await apiFetch<AgentReportResponse>(
+          `/api/agents/pipeline/report/${agentId}?week=${targetWeek}`
+        );
+      } catch {
+        data = await fetchEvidenceReport(agentId, targetWeek);
+      }
+
       setReport(data.report);
       setLastBias(data.report?.bias ?? null);
       setReportSource(data.source ? SOURCE_LABELS[data.source] ?? data.source : '');
