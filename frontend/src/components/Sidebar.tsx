@@ -16,10 +16,10 @@ import clsx from 'clsx';
 const navItems = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/data-collection', label: 'Data Collection', icon: Database },
-  { href: '/agents/almanac', label: 'Almanac Agent', icon: Calendar },
-  { href: '/agents/macro', label: 'Macro Agent', icon: BarChart3 },
-  { href: '/agents/technical', label: 'Technical Agent', icon: TrendingUp },
-  { href: '/agents/llm', label: 'LLM Integration', icon: Sparkles },
+  { href: '/agents/almanac', label: 'Almanac', icon: Calendar },
+  { href: '/agents/macro', label: 'Macro', icon: BarChart3 },
+  { href: '/agents/technical', label: 'Technical', icon: TrendingUp },
+  { href: '/agents/llm', label: 'LLM / Final', icon: Sparkles },
 ];
 
 export function Sidebar() {

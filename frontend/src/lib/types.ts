@@ -56,6 +56,19 @@ export interface PipelineStatus {
   agents: { id: string; scriptAvailable: boolean }[];
 }
 
+export interface EvidenceFileEntry {
+  name: string;
+  path: string;
+  type: 'file' | 'dir';
+  size?: number;
+  downloadUrl?: string;
+}
+
+export interface EvidenceCommitInfo {
+  message: string;
+  date: string;
+}
+
 export type DataSourceType =
   | 'market_price'
   | 'economic_indicator'

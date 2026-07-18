@@ -1,10 +1,16 @@
-import type { AgentReportResponse, AgentType, PipelineStatus } from '@/lib/types';
+import type {
+  AgentReportResponse,
+  AgentType,
+  EvidenceCommitInfo,
+  EvidenceFileEntry,
+  PipelineStatus,
+} from '@/lib/types';
 
-const EVIDENCE_REPO = 'wintwah-lwin/CP3405_Group_4';
-const EVIDENCE_BRANCH = 'main';
+export const EVIDENCE_REPO = 'wintwah-lwin/CP3405_Group_4';
+export const EVIDENCE_BRANCH = 'main';
 const PROJECT_START = '2026-05-25';
 
-type EvidenceAgentId = Exclude<AgentType, never>;
+type EvidenceAgentId = AgentType;
 
 const REPORT_CANDIDATES: Record<EvidenceAgentId, (week: number) => string[]> = {
   almanac: (week) => [`almanac_agent_2026-W${week}.md`],
@@ -19,6 +25,14 @@ const EXTRA_CANDIDATES: Partial<Record<EvidenceAgentId, (week: number) => string
     `agreement_matrix_2026-W${week}.md`,
     `llm_responses_2026-W${week}.json`,
   ],
+};
+
+export const AGENT_FILE_PATTERNS: Record<EvidenceAgentId, RegExp[]> = {
+  almanac: [/^almanac_/i],
+  macro: [/^macro_/i, /^finviz_/i, /^yahoo_/i],
+  technical: [/^technical_/i],
+  llm: [/^llm_/i, /^agreement_matrix/i],
+  final: [/^final_prediction/i],
 };
 
 export function getProjectWeek(): number {
@@ -47,20 +61,26 @@ function extractBiasFromMarkdown(markdown: string): string | null {
   return null;
 }
 
-async function fetchPublicRaw(repoPath: string): Promise<string | null> {
+function repoApiUrl(path: string): string {
+  const [owner, repo] = EVIDENCE_REPO.split('/');
+  const encoded = path.split('/').map(encodeURIComponent).join('/');
+  return `https://api.github.com/repos/${owner}/${repo}/contents/${encoded}?ref=${EVIDENCE_BRANCH}`;
+}
+
+export function rawFileUrl(repoPath: string): string {
   const [owner, repo] = EVIDENCE_REPO.split('/');
   const segments = repoPath.split('/').map(encodeURIComponent).join('/');
-  const url = `https://raw.githubusercontent.com/${owner}/${repo}/${EVIDENCE_BRANCH}/${segments}`;
+  return `https://raw.githubusercontent.com/${owner}/${repo}/${EVIDENCE_BRANCH}/${segments}`;
+}
 
-  const res = await fetch(url, { headers: { Accept: 'text/plain' } });
+async function fetchPublicRaw(repoPath: string): Promise<string | null> {
+  const res = await fetch(rawFileUrl(repoPath), { headers: { Accept: 'text/plain' } });
   if (!res.ok) return null;
   return res.text();
 }
 
 export async function listEvidenceWeeks(): Promise<number[]> {
-  const [owner, repo] = EVIDENCE_REPO.split('/');
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/evidence`;
-  const res = await fetch(url, {
+  const res = await fetch(repoApiUrl('evidence'), {
     headers: {
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
@@ -89,11 +109,124 @@ export function getDefaultEvidenceWeek(availableWeeks: number[]): number {
   return availableWeeks[0] ?? projectWeek;
 }
 
+export function weekFolderPath(week: number, subPath = ''): string {
+  const base = `evidence/Week ${week}`;
+  return subPath ? `${base}/${subPath}` : base;
+}
+
+export async function listWeekEvidenceFiles(
+  week: number,
+  subPath = ''
+): Promise<EvidenceFileEntry[]> {
+  const folderPath = weekFolderPath(week, subPath);
+  const res = await fetch(repoApiUrl(folderPath), {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+
+  if (!res.ok) return [];
+
+  const entries = (await res.json()) as {
+    name: string;
+    path: string;
+    type: 'file' | 'dir';
+    size?: number;
+    download_url?: string;
+  }[];
+
+  return entries
+    .map((entry) => ({
+      name: entry.name,
+      path: entry.path,
+      type: entry.type,
+      size: entry.size,
+      downloadUrl: entry.download_url,
+    }))
+    .sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+}
+
+export async function getWeekPipelineCommit(week: number): Promise<EvidenceCommitInfo | null> {
+  const [owner, repo] = EVIDENCE_REPO.split('/');
+  const path = encodeURIComponent(weekFolderPath(week));
+  const url = `https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&per_page=1`;
+
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+
+  if (!res.ok) return null;
+
+  const commits = (await res.json()) as { commit: { message: string; author: { date: string } } }[];
+  const latest = commits[0];
+  if (!latest) return null;
+
+  return {
+    message: latest.commit.message.split('\n')[0],
+    date: latest.commit.author.date,
+  };
+}
+
+export function formatRelativeTime(isoDate: string): string {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const days = Math.floor(diffMs / 86_400_000);
+
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+  return new Date(isoDate).toLocaleDateString();
+}
+
+export function matchesAgentFilter(
+  name: string,
+  agentFilter?: AgentType | AgentType[]
+): boolean {
+  if (!agentFilter) return true;
+  const filters = Array.isArray(agentFilter) ? agentFilter : [agentFilter];
+  return filters.some((agent) =>
+    AGENT_FILE_PATTERNS[agent].some((pattern) => pattern.test(name))
+  );
+}
+
+export function fileKind(name: string): 'markdown' | 'json' | 'image' | 'other' {
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.md')) return 'markdown';
+  if (lower.endsWith('.json')) return 'json';
+  if (/\.(png|jpg|jpeg|gif|webp|svg)$/.test(lower)) return 'image';
+  return 'other';
+}
+
+export function cleanReportMarkdown(content: string): string {
+  return content
+    .split('\n')
+    .filter((line) => {
+      const trimmed = line.trim();
+      if (/^>\s*this report is fully generated/i.test(trimmed)) return false;
+      if (/^>\s*the .* agent combines/i.test(trimmed)) return false;
+      return true;
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+export async function fetchEvidenceFileContent(path: string): Promise<string | null> {
+  return fetchPublicRaw(path);
+}
+
 export async function fetchEvidenceReport(
   agentId: EvidenceAgentId,
   week: number
 ): Promise<AgentReportResponse> {
-  const weekFolder = `evidence/Week ${week}`;
+  const weekFolder = weekFolderPath(week);
   const filenames = REPORT_CANDIDATES[agentId];
 
   for (const filename of filenames(week)) {
@@ -125,7 +258,7 @@ export async function fetchEvidenceReport(
     week,
     source: 'public_github',
     report: null,
-    message: `No report found in ${EVIDENCE_REPO} for week ${week}. Run GitHub Actions, then Reload.`,
+    message: `No files for week ${week}.`,
   };
 }
 

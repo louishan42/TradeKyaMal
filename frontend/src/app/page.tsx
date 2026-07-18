@@ -7,6 +7,7 @@ import {
 import { StatCard } from '@/components/StatCard';
 import { AgentCard } from '@/components/AgentCard';
 import { PageHeader } from '@/components/PageHeader';
+import { EvidenceWeekBrowser } from '@/components/EvidenceWeekBrowser';
 import { apiFetch } from '@/lib/api';
 import type { Agent, DashboardStats } from '@/lib/types';
 
@@ -67,7 +68,7 @@ export default async function OverviewPage() {
     <div>
       <PageHeader
         title="Overview"
-        description="Trading intelligence platform for data collection and multi-agent analysis."
+        description="Weekly agent pipeline files and status."
       />
 
       {error && (
@@ -115,18 +116,11 @@ export default async function OverviewPage() {
         </div>
       </div>
 
-      <div className="mt-8 rounded-xl border border-border-subtle bg-surface-raised p-6">
-        <h2 className="text-sm font-semibold">Platform Architecture</h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-text-secondary">
-          TradeKyaMal separates concerns into three layers: a{' '}
-          <span className="text-text-primary">data collection</span> layer that
-          ingests market and macro data, three specialised{' '}
-          <span className="text-text-primary">agents</span> (Almanac, Macro,
-          Technical, LLM Integration) that analyse it, and this{' '}
-          <span className="text-text-primary">dashboard</span> for monitoring
-          and control. Start by collecting data, then wire each agent to
-          produce signals.
-        </p>
+      <div className="mt-8">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">
+          Weekly Files
+        </h2>
+        <EvidenceWeekBrowser />
       </div>
     </div>
   );
