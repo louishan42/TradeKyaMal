@@ -1,11 +1,11 @@
 import { PageHeader } from '@/components/PageHeader';
-import { EvidenceWeekBrowser } from '@/components/EvidenceWeekBrowser';
+import { AgentWeekDashboard } from '@/components/AgentWeekDashboard';
 
 export default function AlmanacAgentPage() {
   return (
     <div>
-      <PageHeader title="Almanac Agent" description="Weekly pipeline files." />
-      <EvidenceWeekBrowser agentFilter="almanac" />
+      <PageHeader title="Almanac Agent" description="Weekly bias, market snapshot, and report." />
+      <AgentWeekDashboard agentFilter="almanac" showFinalHero={false} />
     </div>
   );
 }

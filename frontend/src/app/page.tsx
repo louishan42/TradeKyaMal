@@ -7,7 +7,7 @@ import {
 import { StatCard } from '@/components/StatCard';
 import { AgentCard } from '@/components/AgentCard';
 import { PageHeader } from '@/components/PageHeader';
-import { EvidenceWeekBrowser } from '@/components/EvidenceWeekBrowser';
+import { AgentWeekDashboard } from '@/components/AgentWeekDashboard';
 import { apiFetch } from '@/lib/api';
 import type { Agent, DashboardStats } from '@/lib/types';
 
@@ -68,7 +68,7 @@ export default async function OverviewPage() {
     <div>
       <PageHeader
         title="Overview"
-        description="Weekly agent pipeline files and status."
+        description="Weekly agent summaries, charts, and final prediction."
       />
 
       {error && (
@@ -118,9 +118,9 @@ export default async function OverviewPage() {
 
       <div className="mt-8">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-text-muted">
-          Weekly Files
+          Weekly Dashboard
         </h2>
-        <EvidenceWeekBrowser />
+        <AgentWeekDashboard />
       </div>
     </div>
   );

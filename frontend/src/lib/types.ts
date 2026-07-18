@@ -69,6 +69,31 @@ export interface EvidenceCommitInfo {
   date: string;
 }
 
+export interface AgentWeekSummary {
+  id: AgentType;
+  label: string;
+  bias: string | null;
+  confidence: string | null;
+  reportMarkdown: string | null;
+}
+
+export interface WeekDashboardData {
+  week: number;
+  availableWeeks: number[];
+  updatedAt: string | null;
+  finalBias: string | null;
+  finalConfidence: string | null;
+  modelScore: string | null;
+  agents: AgentWeekSummary[];
+  sourceRows: Array<{ source: string; bias: string; confidence: string; driver?: string }>;
+  indexRows: Array<{ asset: string; change: string; signal: string }>;
+  sectors: Array<{ name: string; symbol: string; pct: number }>;
+  technicalCharts: Array<{ label: string; url: string }>;
+  macroCharts: Array<{ label: string; url: string }>;
+  risks: string[];
+  agreementMarkdown: string | null;
+}
+
 export type DataSourceType =
   | 'market_price'
   | 'economic_indicator'

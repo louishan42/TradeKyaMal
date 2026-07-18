@@ -1,11 +1,11 @@
 import { PageHeader } from '@/components/PageHeader';
-import { EvidenceWeekBrowser } from '@/components/EvidenceWeekBrowser';
+import { AgentWeekDashboard } from '@/components/AgentWeekDashboard';
 
 export default function TechnicalAgentPage() {
   return (
     <div>
-      <PageHeader title="Technical Agent" description="Weekly pipeline files." />
-      <EvidenceWeekBrowser agentFilter="technical" />
+      <PageHeader title="Technical Agent" description="Weekly bias, charts, and report." />
+      <AgentWeekDashboard agentFilter="technical" showFinalHero={false} />
     </div>
   );
 }

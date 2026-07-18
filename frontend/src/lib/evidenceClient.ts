@@ -1,9 +1,11 @@
 import type {
   AgentReportResponse,
   AgentType,
+  AgentWeekSummary,
   EvidenceCommitInfo,
   EvidenceFileEntry,
   PipelineStatus,
+  WeekDashboardData,
 } from '@/lib/types';
 
 export const EVIDENCE_REPO = 'wintwah-lwin/CP3405_Group_4';
@@ -280,5 +282,202 @@ export async function fetchPipelineStatus(): Promise<PipelineStatus> {
       id,
       scriptAvailable: false,
     })),
+  };
+}
+
+const AGENT_LABELS: Record<EvidenceAgentId, string> = {
+  almanac: 'Almanac',
+  macro: 'Macro',
+  technical: 'Technical',
+  llm: 'LLM',
+  final: 'Final',
+};
+
+function parseMarkdownField(markdown: string, pattern: RegExp): string | null {
+  const match = markdown.match(pattern);
+  return match?.[1]?.replace(/\*/g, '').trim() ?? null;
+}
+
+function parseTableRow(line: string): string[] {
+  return line
+    .trim()
+    .slice(1, -1)
+    .split('|')
+    .map((cell) => cell.trim());
+}
+
+function parseMarkdownTableAfterHeading(markdown: string, headingMatch: RegExp): string[][] {
+  const lines = markdown.split('\n');
+  let capture = false;
+  const rows: string[][] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      capture = headingMatch.test(line);
+      continue;
+    }
+    if (!capture || !line.trim().startsWith('|')) continue;
+    if (/^\|\s*[-:]+/.test(line)) continue;
+    rows.push(parseTableRow(line));
+  }
+
+  return rows;
+}
+
+function parseRiskBullets(markdown: string): string[] {
+  const lines = markdown.split('\n');
+  let capture = false;
+  const risks: string[] = [];
+
+  for (const line of lines) {
+    if (/^## .*key risks/i.test(line)) {
+      capture = true;
+      continue;
+    }
+    if (capture && line.startsWith('## ')) break;
+    if (capture && line.trim().startsWith('- ')) {
+      risks.push(line.trim().slice(2).replace(/\*\*/g, ''));
+    }
+  }
+
+  return risks.slice(0, 6);
+}
+
+function latestJsonFile(files: EvidenceFileEntry[], pattern: RegExp): EvidenceFileEntry | undefined {
+  return files
+    .filter((file) => file.type === 'file' && pattern.test(file.name))
+    .sort((a, b) => b.name.localeCompare(a.name))[0];
+}
+
+function chartLabel(name: string): string {
+  if (/SPX/i.test(name)) return 'S&P 500';
+  if (/NDX/i.test(name)) return 'Nasdaq';
+  if (/IWM/i.test(name)) return 'Russell 2000';
+  return name.replace(/\.[^.]+$/, '').replace(/_/g, ' ');
+}
+
+function visibleAgents(filter?: AgentType | AgentType[]): EvidenceAgentId[] {
+  const all: EvidenceAgentId[] = ['almanac', 'macro', 'technical', 'llm', 'final'];
+  if (!filter) return all;
+  const filters = Array.isArray(filter) ? filter : [filter];
+  return all.filter((id) => filters.includes(id));
+}
+
+export async function loadWeekDashboard(
+  week: number,
+  agentFilter?: AgentType | AgentType[]
+): Promise<WeekDashboardData> {
+  const [availableWeeks, commit, topFiles, macroChartFiles] = await Promise.all([
+    listEvidenceWeeks(),
+    getWeekPipelineCommit(week),
+    listWeekEvidenceFiles(week),
+    listWeekEvidenceFiles(week, 'macro_charts'),
+  ]);
+
+  const agentIds = visibleAgents(agentFilter);
+  const agentReports = await Promise.all(
+    agentIds.map(async (id) => {
+      const report = await fetchEvidenceReport(id, week);
+      return {
+        id,
+        label: AGENT_LABELS[id],
+        bias: report.report?.bias ?? extractBiasFromMarkdown(report.report?.markdown ?? '') ?? null,
+        confidence: parseMarkdownField(report.report?.markdown ?? '', /\*\*CONFIDENCE:\*\*\s*([^\n]+)/i),
+        reportMarkdown: report.report?.markdown
+          ? cleanReportMarkdown(report.report.markdown)
+          : null,
+      } satisfies AgentWeekSummary;
+    })
+  );
+
+  const finalReport = await fetchEvidenceReport('final', week);
+  const finalMarkdown = finalReport.report?.markdown ?? '';
+  const llmReport = await fetchEvidenceReport('llm', week);
+  const agreementKey = Object.keys(llmReport.report?.extras ?? {}).find((key) =>
+    key.includes('agreement_matrix')
+  );
+  const agreementMarkdown = agreementKey
+    ? cleanReportMarkdown(llmReport.report?.extras?.[agreementKey] ?? '')
+    : null;
+
+  const sectorFile = latestJsonFile(topFiles, /^macro_yahoo_sectors_/i)
+    ?? latestJsonFile(topFiles, /^yahoo_sectors_/i);
+  let sectors: WeekDashboardData['sectors'] = [];
+
+  if (sectorFile) {
+    const raw = await fetchPublicRaw(sectorFile.path);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as Array<{
+          name?: string;
+          symbol?: string;
+          day_return_pct?: number;
+          week_return_pct?: number;
+        }>;
+        sectors = parsed
+          .map((item) => ({
+            name: item.name ?? item.symbol ?? 'Sector',
+            symbol: item.symbol ?? '',
+            pct: item.week_return_pct ?? item.day_return_pct ?? 0,
+          }))
+          .sort((a, b) => b.pct - a.pct);
+      } catch {
+        sectors = [];
+      }
+    }
+  }
+
+  const almanacMarkdown = agentReports.find((agent) => agent.id === 'almanac')?.reportMarkdown ?? '';
+  const indexTable = parseMarkdownTableAfterHeading(
+    almanacMarkdown,
+    /fresh one-week market performance/i
+  );
+  const indexRows = indexTable.slice(0, 8).map((row) => ({
+    asset: row[0] ?? '',
+    change: row[1] ?? '',
+    signal: row[2] ?? '',
+  }));
+
+  const sourceTable = parseMarkdownTableAfterHeading(finalMarkdown, /source summary/i);
+  const sourceRows = sourceTable
+    .filter((row) => row[0] && !/^total$/i.test(row[0]))
+    .map((row) => ({
+      source: row[0] ?? '',
+      bias: row[1] ?? '',
+      confidence: row[2] ?? '',
+      driver: row[3],
+    }));
+
+  const technicalCharts = topFiles
+    .filter((file) => file.type === 'file' && /^technical_.*\.png$/i.test(file.name))
+    .map((file) => ({
+      label: chartLabel(file.name),
+      url: rawFileUrl(file.path),
+    }));
+
+  const macroCharts = macroChartFiles
+    .filter((file) => file.type === 'file' && fileKind(file.name) === 'image')
+    .map((file) => ({
+      label: chartLabel(file.name),
+      url: rawFileUrl(file.path),
+    }));
+
+  return {
+    week,
+    availableWeeks,
+    updatedAt: commit?.date ?? null,
+    finalBias:
+      parseMarkdownField(finalMarkdown, /\*\*FINAL MARKET BIAS:\*\*\s*([^\n]+)/i) ??
+      extractBiasFromMarkdown(finalMarkdown),
+    finalConfidence: parseMarkdownField(finalMarkdown, /\*\*CONFIDENCE:\*\*\s*([^\n]+)/i),
+    modelScore: parseMarkdownField(finalMarkdown, /\*\*MODEL SCORE:\*\*\s*([^\n]+)/i),
+    agents: agentReports,
+    sourceRows,
+    indexRows,
+    sectors,
+    technicalCharts,
+    macroCharts,
+    risks: parseRiskBullets(finalMarkdown),
+    agreementMarkdown,
   };
 }
