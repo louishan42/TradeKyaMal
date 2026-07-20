@@ -91,6 +91,19 @@ async function weekHasEvidence(week: number): Promise<boolean> {
   }
 }
 
+async function probeEvidenceWeeks(maxWeek?: number): Promise<number[]> {
+  const upper = maxWeek ?? Math.max(getProjectWeek(), 26);
+  const found: number[] = [];
+
+  await Promise.all(
+    Array.from({ length: upper }, (_, index) => index + 1).map(async (week) => {
+      if (await weekHasEvidence(week)) found.push(week);
+    })
+  );
+
+  return found.sort((a, b) => b - a);
+}
+
 export async function findLatestWeekWithEvidence(fromWeek?: number): Promise<number> {
   const start = fromWeek ?? getProjectWeek();
   for (let week = start; week >= 1; week -= 1) {
@@ -117,20 +130,29 @@ export async function listEvidenceWeeks(): Promise<number[]> {
   }
 
   if (weeks.size === 0) {
-    const latest = await findLatestWeekWithEvidence();
-    for (let week = latest; week >= Math.max(1, latest - 12); week -= 1) {
-      if (await weekHasEvidence(week)) weeks.add(week);
-    }
-    if (weeks.size === 0) weeks.add(latest);
+    return probeEvidenceWeeks();
+  }
+
+  // GitHub API can miss folders when rate-limited partially — verify high weeks too
+  for (const week of [26, 22, 8, 7, 5, 4, 3]) {
+    if (weeks.has(week)) continue;
+    if (await weekHasEvidence(week)) weeks.add(week);
   }
 
   return [...weeks].sort((a, b) => b - a);
 }
 
 export async function getDefaultEvidenceWeek(availableWeeks: number[]): Promise<number> {
-  const latestWithData = await findLatestWeekWithEvidence();
-  if (availableWeeks.includes(latestWithData)) return latestWithData;
-  return availableWeeks[0] ?? latestWithData;
+  const latestPipelineWeek = await findLatestWeekWithEvidence();
+  if (availableWeeks.includes(latestPipelineWeek)) return latestPipelineWeek;
+
+  // Fall back to newest week near the current project week, not highest folder number (e.g. W26)
+  const projectWeek = getProjectWeek();
+  const nearCurrent = availableWeeks
+    .filter((week) => week <= projectWeek + 1)
+    .sort((a, b) => b - a)[0];
+
+  return nearCurrent ?? latestPipelineWeek;
 }
 
 export function weekFolderPath(week: number, subPath = ''): string {
