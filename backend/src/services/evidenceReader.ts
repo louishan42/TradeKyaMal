@@ -182,14 +182,32 @@ export async function listEvidenceWeeks(): Promise<number[]> {
   }
 
   if (weeks.size === 0) {
-    weeks.add(getProjectWeek());
+    const latest = await findLatestWeekWithEvidence();
+    for (let week = latest; week >= Math.max(1, latest - 12); week -= 1) {
+      if (await weekHasEvidence(week)) weeks.add(week);
+    }
+    if (weeks.size === 0) weeks.add(latest);
   }
 
   return [...weeks].sort((a, b) => b - a);
 }
 
-export function getDefaultEvidenceWeek(availableWeeks: number[]): number {
-  const projectWeek = getProjectWeek();
-  if (availableWeeks.includes(projectWeek)) return projectWeek;
-  return availableWeeks[0] ?? projectWeek;
+async function weekHasEvidence(week: number): Promise<boolean> {
+  const repoPath = `evidence/Week ${week}/almanac_agent_2026-W${week}.md`;
+  const content = await fetchPublicRaw(repoPath);
+  return content !== null;
+}
+
+export async function findLatestWeekWithEvidence(fromWeek?: number): Promise<number> {
+  const start = fromWeek ?? getProjectWeek();
+  for (let week = start; week >= 1; week -= 1) {
+    if (await weekHasEvidence(week)) return week;
+  }
+  return Math.max(1, start - 1);
+}
+
+export async function getDefaultEvidenceWeek(availableWeeks: number[]): Promise<number> {
+  const latestWithData = await findLatestWeekWithEvidence();
+  if (availableWeeks.includes(latestWithData)) return latestWithData;
+  return availableWeeks[0] ?? latestWithData;
 }

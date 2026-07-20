@@ -81,6 +81,24 @@ async function fetchPublicRaw(repoPath: string): Promise<string | null> {
   return res.text();
 }
 
+async function weekHasEvidence(week: number): Promise<boolean> {
+  const path = `${weekFolderPath(week)}/almanac_agent_2026-W${week}.md`;
+  try {
+    const res = await fetch(rawFileUrl(path), { method: 'HEAD' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function findLatestWeekWithEvidence(fromWeek?: number): Promise<number> {
+  const start = fromWeek ?? getProjectWeek();
+  for (let week = start; week >= 1; week -= 1) {
+    if (await weekHasEvidence(week)) return week;
+  }
+  return Math.max(1, start - 1);
+}
+
 export async function listEvidenceWeeks(): Promise<number[]> {
   const res = await fetch(repoApiUrl('evidence'), {
     headers: {
@@ -99,16 +117,20 @@ export async function listEvidenceWeeks(): Promise<number[]> {
   }
 
   if (weeks.size === 0) {
-    weeks.add(getProjectWeek());
+    const latest = await findLatestWeekWithEvidence();
+    for (let week = latest; week >= Math.max(1, latest - 12); week -= 1) {
+      if (await weekHasEvidence(week)) weeks.add(week);
+    }
+    if (weeks.size === 0) weeks.add(latest);
   }
 
   return [...weeks].sort((a, b) => b - a);
 }
 
-export function getDefaultEvidenceWeek(availableWeeks: number[]): number {
-  const projectWeek = getProjectWeek();
-  if (availableWeeks.includes(projectWeek)) return projectWeek;
-  return availableWeeks[0] ?? projectWeek;
+export async function getDefaultEvidenceWeek(availableWeeks: number[]): Promise<number> {
+  const latestWithData = await findLatestWeekWithEvidence();
+  if (availableWeeks.includes(latestWithData)) return latestWithData;
+  return availableWeeks[0] ?? latestWithData;
 }
 
 export function weekFolderPath(week: number, subPath = ''): string {
@@ -266,7 +288,7 @@ export async function fetchEvidenceReport(
 
 export async function fetchPipelineStatus(): Promise<PipelineStatus> {
   const availableWeeks = await listEvidenceWeeks();
-  const defaultWeek = getDefaultEvidenceWeek(availableWeeks);
+  const defaultWeek = await getDefaultEvidenceWeek(availableWeeks);
 
   return {
     pythonAvailable: false,

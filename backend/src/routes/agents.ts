@@ -89,7 +89,7 @@ async function saveAgentRun(
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const availableWeeks = await listEvidenceWeeks();
-    const displayWeek = getDefaultEvidenceWeek(availableWeeks);
+    const displayWeek = await getDefaultEvidenceWeek(availableWeeks);
 
     const agents = await Promise.all(
       AGENT_META.map(async (meta) => {
@@ -142,10 +142,12 @@ router.get('/pipeline/status', async (_req: Request, res: Response) => {
     process.env.ALLOW_SERVER_AGENT_RUNS === 'true' &&
     process.env.NODE_ENV !== 'production';
 
+  const defaultWeek = await getDefaultEvidenceWeek(availableWeeks);
+
   res.json({
     pythonAvailable,
     projectWeek: getProjectWeek(),
-    defaultWeek: getDefaultEvidenceWeek(availableWeeks),
+    defaultWeek,
     availableWeeks,
     githubConfigured: evidence.githubConfigured,
     evidenceRepo: evidence.githubRepo,
@@ -205,7 +207,7 @@ router.get('/pipeline/report/:agentId', async (req: Request, res: Response) => {
       week,
       report: null,
       availableWeeks,
-      defaultWeek: getDefaultEvidenceWeek(availableWeeks),
+      defaultWeek: await getDefaultEvidenceWeek(availableWeeks),
       message:
         'No report found for this week yet. GitHub Actions updates evidence every week — try another week or reload after the workflow runs.',
     });

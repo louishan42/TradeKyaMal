@@ -7,6 +7,7 @@ import { MarkdownContent } from '@/components/MarkdownContent';
 import {
   fetchPipelineStatus,
   formatRelativeTime,
+  getProjectWeek,
   loadWeekDashboard,
 } from '@/lib/evidenceClient';
 import type { AgentType, WeekDashboardData } from '@/lib/types';
@@ -134,7 +135,7 @@ export function AgentWeekDashboard({
   agentFilter,
   showFinalHero = !agentFilter,
 }: AgentWeekDashboardProps) {
-  const [week, setWeek] = useState(8);
+  const [week, setWeek] = useState<number | null>(null);
   const [availableWeeks, setAvailableWeeks] = useState<number[]>([]);
   const [data, setData] = useState<WeekDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -162,8 +163,15 @@ export function AgentWeekDashboard({
   }, []);
 
   useEffect(() => {
+    if (week === null) return;
     loadDashboard(week);
   }, [week, loadDashboard]);
+
+  const hasAgentData = Boolean(
+    data?.agents.some((agent) => agent.bias || agent.reportMarkdown)
+  );
+  const calendarWeek = getProjectWeek();
+  const latestEvidenceWeek = availableWeeks[0] ?? null;
 
   const showTechnical = useMemo(() => {
     if (!agentFilter) return true;
@@ -192,6 +200,10 @@ export function AgentWeekDashboard({
     );
   }
 
+  if (week === null) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-subtle bg-surface-raised px-5 py-4">
@@ -210,6 +222,11 @@ export function AgentWeekDashboard({
               ))}
             </select>
           </label>
+          {calendarWeek !== week && (
+            <span className="text-xs text-text-muted">
+              Calendar week W{calendarWeek} · showing latest evidence W{week}
+            </span>
+          )}
           {data?.updatedAt && (
             <span className="text-xs text-text-muted">
               Updated {formatRelativeTime(data.updatedAt)}
@@ -230,6 +247,18 @@ export function AgentWeekDashboard({
         <p className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-xs text-warning">
           {error}
         </p>
+      )}
+
+      {!hasAgentData && !loading && (
+        <div className="rounded-xl border border-dashed border-border-subtle bg-surface-raised p-10 text-center">
+          <p className="text-sm text-text-secondary">No reports for week {week} yet.</p>
+          <p className="mt-2 text-xs text-text-muted">
+            GitHub Actions runs every Saturday ~4 AM SGT.
+            {latestEvidenceWeek && latestEvidenceWeek !== week
+              ? ` Select W${latestEvidenceWeek} for the latest data.`
+              : ' Check back after the next pipeline run.'}
+          </p>
+        </div>
       )}
 
       {showFinalHero && data?.finalBias && (
