@@ -68,7 +68,7 @@ export default async function OverviewPage() {
     <div>
       <PageHeader
         title="Overview"
-        description="Weekly agent summaries, charts, and final prediction."
+        description="Weekly agent summaries, human scores, calibration, and final prediction."
       />
 
       {error && (

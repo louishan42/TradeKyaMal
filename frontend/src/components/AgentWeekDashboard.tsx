@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Loader2, RefreshCw } from 'lucide-react';
 import clsx from 'clsx';
 import { MarkdownContent } from '@/components/MarkdownContent';
+import { CalibrationPanel } from '@/components/CalibrationPanel';
+import { HumanScorePanel } from '@/components/HumanScorePanel';
 import {
   fetchPipelineStatus,
   formatRelativeTime,
@@ -372,11 +374,32 @@ export function AgentWeekDashboard({
         </section>
       )}
 
+      {showFinalHero && data?.agents.find((a) => a.id === 'final')?.reportMarkdown && (
+        <ReportAccordion
+          title="Final Prediction Report"
+          markdown={data.agents.find((a) => a.id === 'final')?.reportMarkdown ?? null}
+        />
+      )}
+
+      {showFinalHero && data && (
+        <>
+          <HumanScorePanel week={week} githubMarkdown={data.humanScoreMarkdown} />
+          <CalibrationPanel
+            calibrationLog={data.calibrationLog}
+            learningLog={data.learningLog}
+            llmHorserace={data.llmHorserace}
+            pastAccuracyLog={data.pastAccuracyLog}
+          />
+        </>
+      )}
+
       {data?.agreementMarkdown && (
         <ReportAccordion title="Agreement Matrix" markdown={data.agreementMarkdown} />
       )}
 
-      {data?.agents.map((agent) => (
+      {data?.agents
+        .filter((agent) => agent.id !== 'final')
+        .map((agent) => (
         <ReportAccordion
           key={agent.id}
           title={`${agent.label} Report`}

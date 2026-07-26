@@ -92,6 +92,30 @@ export interface WeekDashboardData {
   macroCharts: Array<{ label: string; url: string }>;
   risks: string[];
   agreementMarkdown: string | null;
+  calibrationLog: string | null;
+  learningLog: string | null;
+  llmHorserace: string | null;
+  pastAccuracyLog: string | null;
+  humanScoreMarkdown: string | null;
+}
+
+export interface HumanScoreSection {
+  aiScore: number;
+  teamScore: number;
+  notes: string;
+}
+
+export interface HumanScoreData {
+  week: number;
+  macro: HumanScoreSection;
+  technical: HumanScoreSection;
+  almanac: HumanScoreSection;
+  llmConsensus: HumanScoreSection;
+  finalBias: string;
+  confidence: string;
+  markdown?: string;
+  updatedAt?: string;
+  source?: 'saved' | 'github';
 }
 
 export type DataSourceType =

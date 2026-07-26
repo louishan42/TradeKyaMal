@@ -387,6 +387,71 @@ function parseRiskBullets(markdown: string): string[] {
   return risks.slice(0, 6);
 }
 
+async function fetchOptionalMarkdown(path: string): Promise<string | null> {
+  const raw = await fetchPublicRaw(path);
+  return raw ? cleanReportMarkdown(raw) : null;
+}
+
+export async function fetchCalibrationArtifacts(week: number): Promise<{
+  calibrationLog: string | null;
+  learningLog: string | null;
+  llmHorserace: string | null;
+  pastAccuracyLog: string | null;
+  humanScoreMarkdown: string | null;
+}> {
+  const weekFolder = weekFolderPath(week);
+
+  async function firstMatch(paths: string[]): Promise<string | null> {
+    for (const path of paths) {
+      const content = await fetchOptionalMarkdown(path);
+      if (content) return content;
+    }
+    return null;
+  }
+
+  const [
+    calibrationLog,
+    learningLog,
+    llmHorserace,
+    pastAccuracyWeek,
+    pastAccuracyRoot,
+    humanScoreMarkdown,
+  ] = await Promise.all([
+    firstMatch([
+      `${weekFolder}/calibration_log_2026-W${week}.md`,
+      `${weekFolder}/calibration_log_W${week}.md`,
+      `${weekFolder}/calibration_log.md`,
+      `evidence/calibration_log.md`,
+    ]),
+    firstMatch([
+      `${weekFolder}/learning_log_2026-W${week}.md`,
+      `${weekFolder}/learning_log_W${week}.md`,
+      `${weekFolder}/learning_log.md`,
+      `evidence/learning_log_W${week}.md`,
+    ]),
+    firstMatch([
+      `${weekFolder}/llm_horserace_2026-W${week}.md`,
+      `${weekFolder}/llm_horserace_W${week}.md`,
+      `${weekFolder}/llm_horserace.md`,
+      `evidence/llm_horserace.md`,
+    ]),
+    firstMatch([`${weekFolder}/past_accuracy_log.md`]),
+    firstMatch([`evidence/past_accuracy_log.md`]),
+    firstMatch([
+      `${weekFolder}/human_score_2026-W${week}.md`,
+      `evidence/human_score_2026-W${week}.md`,
+    ]),
+  ]);
+
+  return {
+    calibrationLog,
+    learningLog,
+    llmHorserace,
+    pastAccuracyLog: pastAccuracyWeek ?? pastAccuracyRoot ?? null,
+    humanScoreMarkdown,
+  };
+}
+
 function latestJsonFile(files: EvidenceFileEntry[], pattern: RegExp): EvidenceFileEntry | undefined {
   return files
     .filter((file) => file.type === 'file' && pattern.test(file.name))
@@ -411,11 +476,12 @@ export async function loadWeekDashboard(
   week: number,
   agentFilter?: AgentType | AgentType[]
 ): Promise<WeekDashboardData> {
-  const [availableWeeks, commit, topFiles, macroChartFiles] = await Promise.all([
+  const [availableWeeks, commit, topFiles, macroChartFiles, calibration] = await Promise.all([
     listEvidenceWeeks(),
     getWeekPipelineCommit(week),
     listWeekEvidenceFiles(week),
     listWeekEvidenceFiles(week, 'macro_charts'),
+    fetchCalibrationArtifacts(week),
   ]);
 
   const agentIds = visibleAgents(agentFilter);
@@ -523,5 +589,10 @@ export async function loadWeekDashboard(
     macroCharts,
     risks: parseRiskBullets(finalMarkdown),
     agreementMarkdown,
+    calibrationLog: calibration.calibrationLog,
+    learningLog: calibration.learningLog,
+    llmHorserace: calibration.llmHorserace,
+    pastAccuracyLog: calibration.pastAccuracyLog,
+    humanScoreMarkdown: calibration.humanScoreMarkdown,
   };
 }

@@ -1,0 +1,163 @@
+name: Auto Prediction
+
+on:
+  schedule:
+    - cron: '0 20 * * 5' # Saturday 4:00 AM SGT
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts
+      MPLBACKEND: Agg
+      TZ: Asia/Singapore
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+          pip install openai google-generativeai
+
+      - name: Compute project week
+        id: week
+        shell: bash
+        run: |
+          START_DATE="2026-05-25"
+          CURRENT_DATE=$(date +%F)
+
+          START_SECS=$(date -d "$START_DATE" +%s)
+          CURRENT_SECS=$(date -d "$CURRENT_DATE" +%s)
+          DAYS_PASSED=$(( (CURRENT_SECS - START_SECS) / 86400 ))
+          PROJECT_WEEK=$(( (DAYS_PASSED / 7) + 1 ))
+
+          if [ "$PROJECT_WEEK" -lt 1 ]; then
+            echo "Invalid project week: $PROJECT_WEEK"
+            exit 1
+          fi
+
+          echo "week=$PROJECT_WEEK" >> "$GITHUB_OUTPUT"
+          echo "Running Project Week: $PROJECT_WEEK"
+
+      - name: Run automated fetch (R6)
+        run: |
+          python scripts/run_weekly_fetch.py \
+            --week "${{ steps.week.outputs.week }}" \
+            --repo "${{ github.workspace }}" \
+            --no-push
+
+      - name: Run Almanac Agent (R3)
+        run: |
+          python scripts/run_almanac_agent.py \
+            --week "${{ steps.week.outputs.week }}" \
+            --repo "${{ github.workspace }}" \
+            --no-push
+
+      - name: Run Macro Agent (R4)
+        run: |
+          python scripts/run_macro_agent.py \
+            --week "${{ steps.week.outputs.week }}" \
+            --repo "${{ github.workspace }}" \
+            --no-push
+
+      - name: Run Technical Agent (R5)
+        run: |
+          python scripts/run_technical_agent.py \
+            --week "${{ steps.week.outputs.week }}" \
+            --repo "${{ github.workspace }}" \
+            --no-push
+
+      - name: Run LLM synthesis (R8)
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python scripts/run_llm_integration.py \
+            --week "${{ steps.week.outputs.week }}" \
+            --repo "${{ github.workspace }}" \
+            --no-push
+
+      - name: Verify LLM API calls succeeded
+        shell: bash
+        run: |
+          WEEK="${{ steps.week.outputs.week }}"
+          LOG="evidence/Week $WEEK/llm_responses_2026-W$WEEK.json"
+
+          python - <<'PY'
+          import json
+          import os
+          import sys
+
+          week = os.environ["WEEK"]
+          log = f"evidence/Week {week}/llm_responses_2026-W{week}.json"
+
+          with open(log, encoding="utf-8") as f:
+              data = json.load(f)
+
+          failed = [item for item in data if not item.get("ok")]
+          if failed:
+              for item in failed:
+                  print(f"FAILED: {item.get('model')} -> {item.get('text')}")
+              sys.exit(1)
+
+          print("OpenAI and Gemini both succeeded.")
+          PY
+        env:
+          WEEK: ${{ steps.week.outputs.week }}
+
+      - name: Generate final prediction
+        run: |
+          python scripts/run_final_prediction.py \
+            --week "${{ steps.week.outputs.week }}" \
+            --repo "${{ github.workspace }}" \
+            --no-push
+
+      - name: Verify generated files
+        shell: bash
+        run: |
+          WEEK="${{ steps.week.outputs.week }}"
+          WEEK_DIR="evidence/Week $WEEK"
+
+          test -f "$WEEK_DIR/almanac_agent_2026-W$WEEK.md"
+          test -f "$WEEK_DIR/macro_report_w$WEEK.md"
+          test -f "$WEEK_DIR/technical_agent_2026-W$WEEK.md"
+          test -f "$WEEK_DIR/llm_integration_2026-W$WEEK.md"
+          test -f "$WEEK_DIR/final_prediction_2026-W$WEEK.md"
+
+          echo "All required Week $WEEK reports were generated."
+
+      - name: Auto-commit and push
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add evidence/ incoming/
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Auto-commit: Pipeline execution (Week ${{ steps.week.outputs.week }})"
+
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"
