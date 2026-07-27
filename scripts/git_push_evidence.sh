@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Commit evidence/ changes and push, auto-resolving rebase conflicts in evidence paths.
+# Commit evidence/ changes and push, preferring this pipeline run on conflicts.
 set -euo pipefail
 
 BRANCH="${1:?branch required}"
@@ -8,6 +8,20 @@ PATHS="${3:-evidence/ incoming/}"
 
 git config user.name "github-actions[bot]"
 git config user.email "github-actions[bot]@users.noreply.github.com"
+
+resolve_evidence_conflicts() {
+  while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    case "$file" in
+      evidence/*|incoming/*)
+        git checkout --ours -- "$file" 2>/dev/null || true
+        git add -- "$file" 2>/dev/null || true
+        ;;
+    esac
+  done < <(git diff --name-only --diff-filter=U 2>/dev/null || true)
+
+  git add evidence/ incoming/ 2>/dev/null || true
+}
 
 # shellcheck disable=SC2086
 git add $PATHS
@@ -20,30 +34,30 @@ fi
 git commit -m "$COMMIT_MSG"
 
 for attempt in 1 2 3; do
-  if git pull --rebase origin "$BRANCH"; then
-    git push origin "HEAD:$BRANCH"
+  echo "Push attempt $attempt..."
+
+  if git push origin "HEAD:$BRANCH"; then
+    echo "Push succeeded."
     exit 0
   fi
 
-  echo "Rebase conflict (attempt $attempt) — keeping this run's evidence files."
-  while IFS= read -r file; do
-    [ -z "$file" ] && continue
-    case "$file" in
-      evidence/*|incoming/*)
-        git checkout --theirs -- "$file" 2>/dev/null || true
-        git add -- "$file" 2>/dev/null || true
-        ;;
-    esac
-  done < <(git diff --name-only --diff-filter=U)
+  echo "Push rejected — fetching and merging origin/$BRANCH (keeping pipeline evidence)."
+  git fetch origin "$BRANCH"
 
-  git add evidence/ incoming/ 2>/dev/null || true
-  if GIT_EDITOR=true git rebase --continue; then
+  if git merge "origin/$BRANCH" -X ours --no-edit; then
     continue
   fi
 
-  git rebase --abort || true
-  echo "Rebase failed on attempt $attempt."
-  exit 1
+  echo "Merge conflict — resolving evidence/ and incoming/ with this run's files."
+  resolve_evidence_conflicts
+
+  if git diff --cached --quiet; then
+    git merge --abort 2>/dev/null || true
+    echo "Could not resolve merge on attempt $attempt."
+    exit 1
+  fi
+
+  git commit --no-edit || GIT_EDITOR=true git merge --continue
 done
 
 echo "Failed to push after 3 attempts."

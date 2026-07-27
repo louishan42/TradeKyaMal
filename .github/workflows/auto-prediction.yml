@@ -58,7 +58,11 @@ jobs:
           echo "Running Project Week: $PROJECT_WEEK"
 
       - name: Sync with remote before pipeline
-        run: git pull --rebase origin "${{ github.ref_name }}"
+        run: |
+          git fetch origin "${{ github.ref_name }}"
+          git reset --hard "origin/${{ github.ref_name }}"
+
+      - name: Run automated fetch (R6)
         run: |
           python scripts/run_weekly_fetch.py \
             --week "${{ steps.week.outputs.week }}" \
