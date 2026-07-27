@@ -36,6 +36,10 @@ jobs:
         run: |
           python scripts/run_calibration_suite.py --week ${{ inputs.week }} --repo .
 
+      - name: Run past accuracy report
+        run: |
+          python scripts/build_past_accuracy_report.py --week ${{ inputs.week }} --repo .
+
       - name: Auto-commit and push
         shell: bash
         run: |

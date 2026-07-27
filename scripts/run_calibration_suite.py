@@ -451,32 +451,6 @@ def generate_llm_horserace(week, calibration_results):
 {winner} is the week's winner based on the highest directional calibration score.
 """
 
-
-def generate_past_accuracy_log(history: dict, current_week: int) -> str:
-    week_nums = [int(match.group(1)) for key in history if (match := re.match(r"W(\d+)", key))]
-    max_week = max([current_week] + week_nums) if week_nums else current_week
-
-    rows = []
-    for w in range(1, max_week + 1):
-        scores = history.get(f"W{w}", {}).get("summary_scores", {})
-        rows.append(
-            f"| W{w} | {scores.get('direction_accuracy', 'N/A')} | "
-            f"{scores.get('magnitude_accuracy', 'N/A')} | "
-            f"{scores.get('confidence_calibration', 'N/A')} | "
-            f"{scores.get('overall_score', 'N/A')} |"
-        )
-
-    return (
-        "# Past Accuracy Report\n\n"
-        "This report aggregates weekly calibration scores into a single historical log.\n\n"
-        "## Weekly Summary\n\n"
-        "| Week | Direction Accuracy | Magnitude Accuracy | Confidence Calibration | Overall Score |\n"
-        "|---|---|---|---|---|\n"
-        + "\n".join(rows)
-        + "\n"
-    )
-
-
 def save_outputs(week, repo_path, report, results, history, calibration_log, learning_log, llm_horse_race):
     OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -509,11 +483,6 @@ def save_outputs(week, repo_path, report, results, history, calibration_log, lea
     hist_path = repo_path / "evidence" / HISTORY_JSON
     if hist_path.exists():
         shutil.copy2(hist_path, week_dir / HISTORY_JSON)
-
-    past_accuracy = generate_past_accuracy_log(history, week)
-    for path in (repo_path / "evidence" / PAST_ACCURACY_MD, week_dir / PAST_ACCURACY_MD):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(past_accuracy, encoding="utf-8")
 
 def main():
     parser = argparse.ArgumentParser(description="Run Calibration Suite")
