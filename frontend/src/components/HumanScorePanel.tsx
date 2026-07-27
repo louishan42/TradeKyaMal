@@ -5,7 +5,7 @@ import { Loader2, Save } from 'lucide-react';
 import clsx from 'clsx';
 import { MarkdownContent } from '@/components/MarkdownContent';
 import { apiFetch } from '@/lib/api';
-import { emptyHumanScore, parseHumanScoreMarkdown } from '@/lib/humanScoreUtils';
+import { emptyHumanScore, parseHumanScoreMarkdown, computeHumanScoreTotal, formatScoreBreakdown } from '@/lib/humanScoreUtils';
 import type { HumanScoreData, HumanScoreSection } from '@/lib/types';
 
 interface HumanScorePanelProps {
@@ -150,8 +150,10 @@ export function HumanScorePanel({ week, githubMarkdown }: HumanScorePanelProps) 
         technical: form.technical,
         almanac: form.almanac,
         llmConsensus: form.llmConsensus,
+        wildcard: form.wildcard,
         finalBias: form.finalBias,
         confidence: form.confidence,
+        recommendation: form.recommendation,
       };
       const response = await apiFetch<{ markdown: string; updatedAt: string }>(
         `/api/human-score/${week}`,
@@ -166,6 +168,8 @@ export function HumanScorePanel({ week, githubMarkdown }: HumanScorePanelProps) 
       setSaving(false);
     }
   }
+
+  const humanScoreTotal = computeHumanScoreTotal(form);
 
   if (loading) {
     return (
@@ -232,14 +236,20 @@ export function HumanScorePanel({ week, githubMarkdown }: HumanScorePanelProps) 
         ))}
       </div>
 
+      <SectionEditor
+        title="Wild Card / Human Observation"
+        section={form.wildcard}
+        onChange={(wildcard) => setForm((current) => ({ ...current, wildcard }))}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-xs">
-          <span className="text-text-muted">Human Final Bias</span>
+        <label className="flex flex-col gap-1 text-xs sm:col-span-2">
+          <span className="text-text-muted">Verdict</span>
           <input
             type="text"
             value={form.finalBias}
             onChange={(e) => setForm((current) => ({ ...current, finalBias: e.target.value }))}
-            placeholder="e.g. Neutral-to-Cautious"
+            placeholder="e.g. Neutral-Bearish"
             className="rounded-md border border-border bg-surface px-3 py-2 text-sm"
           />
         </label>
@@ -257,7 +267,48 @@ export function HumanScorePanel({ week, githubMarkdown }: HumanScorePanelProps) 
             ))}
           </select>
         </label>
+        <label className="flex flex-col gap-1 text-xs sm:col-span-2">
+          <span className="text-text-muted">Recommendation</span>
+          <textarea
+            value={form.recommendation}
+            onChange={(e) => setForm((current) => ({ ...current, recommendation: e.target.value }))}
+            rows={3}
+            placeholder="e.g. Maintain a cautious investment stance. Continue monitoring geopolitical developments..."
+            className="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-secondary"
+          />
+        </label>
       </div>
+
+      <section className="rounded-xl border border-accent/30 bg-surface-raised p-5">
+        <h3 className="text-sm font-semibold text-accent">Final Decision</h3>
+        {form.wildcard.notes.trim() && (
+          <div className="mt-4 rounded-lg border border-border-subtle bg-surface px-4 py-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Wild Card</p>
+            <MarkdownContent content={form.wildcard.notes} />
+          </div>
+        )}
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-text-muted">Human Score</p>
+            <p className="mt-1 font-mono text-lg font-semibold">{humanScoreTotal >= 0 ? '+' : ''}{humanScoreTotal}</p>
+            <p className="mt-1 text-[11px] text-text-secondary">{formatScoreBreakdown(form)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-text-muted">Verdict</p>
+            <p className="mt-1 text-sm font-semibold">{form.finalBias || '—'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-text-muted">Confidence</p>
+            <p className="mt-1 text-sm font-semibold">{form.confidence}</p>
+          </div>
+        </div>
+        {form.recommendation.trim() && (
+          <p className="mt-4 text-sm leading-relaxed text-text-secondary">
+            <span className="font-medium text-text-primary">Recommendation: </span>
+            {form.recommendation}
+          </p>
+        )}
+      </section>
 
       {showPreview && previewMarkdown && (
         <section className="rounded-xl border border-border-subtle bg-surface-raised px-5 py-4">

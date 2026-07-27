@@ -16,8 +16,10 @@ const payloadSchema = z.object({
   technical: sectionSchema,
   almanac: sectionSchema,
   llmConsensus: sectionSchema,
+  wildcard: sectionSchema,
   finalBias: z.string().min(1).max(200),
   confidence: z.string().min(1).max(100),
+  recommendation: z.string().max(4000).optional().default(''),
 });
 
 router.get('/:week', async (req: Request, res: Response) => {
@@ -42,8 +44,10 @@ router.get('/:week', async (req: Request, res: Response) => {
         technical: doc.technical,
         almanac: doc.almanac,
         llmConsensus: doc.llmConsensus,
+        wildcard: doc.wildcard,
         finalBias: doc.finalBias,
         confidence: doc.confidence,
+        recommendation: doc.recommendation,
         markdown: doc.markdown,
         updatedAt: doc.updatedAt,
       },
