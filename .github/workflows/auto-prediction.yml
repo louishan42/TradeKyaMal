@@ -57,7 +57,8 @@ jobs:
           echo "week=$PROJECT_WEEK" >> "$GITHUB_OUTPUT"
           echo "Running Project Week: $PROJECT_WEEK"
 
-      - name: Run automated fetch (R6)
+      - name: Sync with remote before pipeline
+        run: git pull --rebase origin "${{ github.ref_name }}"
         run: |
           python scripts/run_weekly_fetch.py \
             --week "${{ steps.week.outputs.week }}" \
@@ -147,17 +148,7 @@ jobs:
       - name: Auto-commit and push
         shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add evidence/ incoming/
-
-          if git diff --staged --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-
-          git commit -m "Auto-commit: Pipeline execution (Week ${{ steps.week.outputs.week }})"
-
-          git pull --rebase origin "${{ github.ref_name }}"
-          git push origin "HEAD:${{ github.ref_name }}"
+          chmod +x scripts/git_push_evidence.sh
+          scripts/git_push_evidence.sh \
+            "${{ github.ref_name }}" \
+            "Auto-commit: Pipeline execution (Week ${{ steps.week.outputs.week }})"

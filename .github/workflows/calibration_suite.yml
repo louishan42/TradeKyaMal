@@ -36,24 +36,10 @@ jobs:
         run: |
           python scripts/run_calibration_suite.py --week ${{ inputs.week }} --repo .
 
-      - name: Run past accuracy report
-        run: |
-          python scripts/build_past_accuracy_report.py --week ${{ inputs.week }} --repo .
-
       - name: Auto-commit and push
         shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add evidence/
-
-          if git diff --staged --quiet; then
-            echo "No changes to commit."
-            exit 0
-          fi
-
-          git commit -m "auto: generate calibration reports for Week ${{ inputs.week }}"
-
-          git pull --rebase origin "${{ github.ref_name }}"
-          git push origin "HEAD:${{ github.ref_name }}"
+          chmod +x scripts/git_push_evidence.sh
+          scripts/git_push_evidence.sh \
+            "${{ github.ref_name }}" \
+            "auto: generate calibration reports for Week ${{ inputs.week }}"
