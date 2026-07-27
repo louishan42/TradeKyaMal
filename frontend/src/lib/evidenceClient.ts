@@ -45,7 +45,11 @@ export function getProjectWeek(): number {
 
 const REPORT_CANDIDATES: Record<EvidenceAgentId, (week: number) => string[]> = {
   almanac: (week) => [`almanac_agent_2026-W${week}.md`],
-  macro: (week) => [`macro_report_w${week}.md`, `macro_agent_data_W${week}.md`],
+  macro: (week) => [
+    `macro_agent_2026-W${week}.md`,
+    `macro_report_w${week}.md`,
+    `macro_agent_data_W${week}.md`,
+  ],
   technical: (week) => [`technical_agent_2026-W${week}.md`],
   llm: (week) => [`llm_integration_2026-W${week}.md`],
   final: (week) => [`final_prediction_2026-W${week}.md`],
@@ -75,6 +79,11 @@ function extractBiasFromMarkdown(markdown: string): string | null {
     /\*\*FINAL TECHNICAL BIAS:\*\*\s*([^\n]+)/i,
     /\*\*TECHNICAL BIAS:\*\*\s*([^\n]+)/i,
     /\*\*FINAL MARKET BIAS:\*\*\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*ALMANAC BIAS:\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*MACRO BIAS:\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*FINAL TECHNICAL BIAS:\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*TECHNICAL BIAS:\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*FINAL MARKET BIAS:\s*([^\n]+)/i,
     /Overall Market Bias:\s*([^\n]+)/i,
   ];
 
@@ -557,9 +566,11 @@ export async function fetchCalibrationArtifacts(projectWeek: number): Promise<{
 }
 
 function latestJsonFile(files: EvidenceFileEntry[], pattern: RegExp): EvidenceFileEntry | undefined {
+  const dated = (name: string) => name.match(/(\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
+
   return files
     .filter((file) => file.type === 'file' && pattern.test(file.name))
-    .sort((a, b) => b.name.localeCompare(a.name))[0];
+    .sort((a, b) => dated(b.name).localeCompare(dated(a.name)) || b.name.localeCompare(a.name))[0];
 }
 
 function chartLabel(name: string): string {

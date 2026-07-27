@@ -253,6 +253,11 @@ export function extractBiasFromMarkdown(markdown: string): string | null {
     /\*\*FINAL TECHNICAL BIAS:\*\*\s*([^\n]+)/i,
     /\*\*TECHNICAL BIAS:\*\*\s*([^\n]+)/i,
     /\*\*FINAL MARKET BIAS:\*\*\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*ALMANAC BIAS:\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*MACRO BIAS:\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*FINAL TECHNICAL BIAS:\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*TECHNICAL BIAS:\s*([^\n]+)/i,
+    /(?:^|\n)#{1,3}\s*FINAL MARKET BIAS:\s*([^\n]+)/i,
     /Overall Market Bias:\s*([^\n]+)/i,
   ];
 

@@ -305,7 +305,7 @@ export function AgentWeekDashboard({
 
       {showMacro && data && data.sectors.length > 0 && (
         <section className="rounded-xl border border-border-subtle bg-surface-raised p-5">
-          <h3 className="mb-4 text-sm font-semibold">Sector Performance</h3>
+          <h3 className="mb-4 text-sm font-semibold">Sector Performance (Day Return)</h3>
           <div className="space-y-3">
             {data.sectors.slice(0, 11).map((sector) => (
               <SectorBar

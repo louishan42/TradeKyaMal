@@ -20,7 +20,11 @@ export const DEFAULT_EVIDENCE_BRANCH = 'main';
 
 const REPORT_CANDIDATES: Record<EvidenceAgentId, (week: number) => string[]> = {
   almanac: (week) => [`almanac_agent_2026-W${week}.md`],
-  macro: (week) => [`macro_report_w${week}.md`, `macro_agent_data_W${week}.md`],
+  macro: (week) => [
+    `macro_agent_2026-W${week}.md`,
+    `macro_report_w${week}.md`,
+    `macro_agent_data_W${week}.md`,
+  ],
   technical: (week) => [`technical_agent_2026-W${week}.md`],
   llm: (week) => [`llm_integration_2026-W${week}.md`],
   final: (week) => [`final_prediction_2026-W${week}.md`],
