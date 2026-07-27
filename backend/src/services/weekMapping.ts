@@ -1,39 +1,26 @@
 /**
- * Maps project weeks to evidence folder/file naming in CP3405_Group_4.
- * See frontend/src/lib/weekMapping.ts — keep in sync.
+ * Maps course project weeks to evidence folders — keep in sync with frontend.
  */
 
 export const LEGACY_W6_FOLDER = 26;
-const PIPELINE_WEEK_OFFSET = 1;
+
+export function maxSelectableProjectWeek(currentProjectWeek: number): number {
+  return currentProjectWeek;
+}
 
 export function projectWeekToEvidenceTarget(projectWeek: number): {
   folder: number;
   fileWeek: number;
 } {
-  if (projectWeek <= 5) {
-    return { folder: projectWeek, fileWeek: projectWeek };
-  }
-  if (projectWeek === 6) {
-    return { folder: 6, fileWeek: 6 };
-  }
-  const folder = projectWeek + PIPELINE_WEEK_OFFSET;
-  return { folder, fileWeek: folder };
+  return { folder: projectWeek, fileWeek: projectWeek };
 }
 
 export function folderAndFileWeekToProjectWeek(
   folder: number,
   fileWeek: number
 ): number {
-  if (folder === LEGACY_W6_FOLDER || (folder === 6 && fileWeek === 6)) {
-    return 6;
-  }
-  if (folder >= 7 && fileWeek === folder) {
-    return folder - PIPELINE_WEEK_OFFSET;
-  }
-  if (fileWeek >= 1 && fileWeek <= 30) {
-    return fileWeek;
-  }
-  return folder;
+  if (folder === LEGACY_W6_FOLDER && fileWeek === 6) return 6;
+  return fileWeek;
 }
 
 export function parseFileWeekFromName(filename: string): number | null {

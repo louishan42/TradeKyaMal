@@ -7,6 +7,7 @@ import {
   evidencePathsForProjectWeek,
   folderAndFileWeekToProjectWeek,
   LEGACY_W6_FOLDER,
+  maxSelectableProjectWeek,
   projectWeekToEvidenceTarget,
 } from './weekMapping';
 import type { PipelineAgentId } from './pythonPipeline';
@@ -190,6 +191,7 @@ async function detectProjectWeekForFolder(folder: number): Promise<number | null
 }
 
 export async function listEvidenceWeeks(): Promise<number[]> {
+  const cap = maxSelectableProjectWeek(getProjectWeek());
   const config = getEvidenceConfig();
   const folderNums = new Set<number>();
 
@@ -230,19 +232,22 @@ export async function listEvidenceWeeks(): Promise<number[]> {
   await Promise.all(
     [...folderNums].map(async (folder) => {
       const projectWeek = await detectProjectWeekForFolder(folder);
-      if (projectWeek) projectWeeks.add(projectWeek);
+      if (projectWeek && projectWeek <= cap) projectWeeks.add(projectWeek);
     })
   );
 
-  for (let week = 1; week <= getProjectWeek() + 1; week += 1) {
+  for (let week = 1; week <= cap; week += 1) {
     if (await weekHasEvidence(week)) projectWeeks.add(week);
   }
 
-  return [...projectWeeks].sort((a, b) => b - a);
+  return [...projectWeeks]
+    .filter((week) => week <= cap)
+    .sort((a, b) => b - a);
 }
 
 async function probeEvidenceWeeks(maxWeek?: number): Promise<number[]> {
-  const upper = maxWeek ?? getProjectWeek() + 2;
+  const cap = maxSelectableProjectWeek(getProjectWeek());
+  const upper = maxWeek ?? cap;
   const found: number[] = [];
 
   await Promise.all(
@@ -251,7 +256,7 @@ async function probeEvidenceWeeks(maxWeek?: number): Promise<number[]> {
     })
   );
 
-  return found.sort((a, b) => b - a);
+  return found.filter((week) => week <= cap).sort((a, b) => b - a);
 }
 
 export async function findLatestWeekWithEvidence(fromWeek?: number): Promise<number> {
@@ -263,13 +268,18 @@ export async function findLatestWeekWithEvidence(fromWeek?: number): Promise<num
 }
 
 export async function getDefaultEvidenceWeek(availableWeeks: number[]): Promise<number> {
-  const latestPipelineWeek = await findLatestWeekWithEvidence();
+  const projectWeek = getProjectWeek();
+
+  if (availableWeeks.includes(projectWeek)) {
+    return projectWeek;
+  }
+
+  const latestPipelineWeek = await findLatestWeekWithEvidence(projectWeek);
   if (availableWeeks.includes(latestPipelineWeek)) return latestPipelineWeek;
 
-  const projectWeek = getProjectWeek();
-  const nearCurrent = availableWeeks
-    .filter((week) => week <= projectWeek)
-    .sort((a, b) => b - a)[0];
-
-  return nearCurrent ?? latestPipelineWeek;
+  return (
+    availableWeeks
+      .filter((week) => week <= projectWeek)
+      .sort((a, b) => b - a)[0] ?? projectWeek
+  );
 }

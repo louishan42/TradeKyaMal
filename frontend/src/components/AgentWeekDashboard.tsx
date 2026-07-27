@@ -9,6 +9,7 @@ import { HumanScorePanel } from '@/components/HumanScorePanel';
 import {
   fetchPipelineStatus,
   formatRelativeTime,
+  getProjectWeek,
   loadWeekDashboard,
 } from '@/lib/evidenceClient';
 import type { AgentType, WeekDashboardData } from '@/lib/types';
@@ -158,8 +159,11 @@ export function AgentWeekDashboard({
 
   useEffect(() => {
     fetchPipelineStatus().then((status) => {
-      setWeek(status.defaultWeek);
-      setAvailableWeeks(status.availableWeeks ?? []);
+      const current = status.projectWeek;
+      const weeks = status.availableWeeks ?? [];
+      const defaultWeek = weeks.includes(current) ? current : status.defaultWeek;
+      setWeek(defaultWeek);
+      setAvailableWeeks(weeks);
     });
   }, []);
 
@@ -172,6 +176,7 @@ export function AgentWeekDashboard({
     data?.agents.some((agent) => agent.bias || agent.reportMarkdown)
   );
   const latestEvidenceWeek = availableWeeks[0] ?? null;
+  const currentProjectWeek = getProjectWeek();
 
   const showTechnical = useMemo(() => {
     if (!agentFilter) return true;
@@ -217,7 +222,7 @@ export function AgentWeekDashboard({
             >
               {(availableWeeks.length ? availableWeeks : [week]).map((value) => (
                 <option key={value} value={value}>
-                  W{value}
+                  W{value}{value === currentProjectWeek ? ' (current)' : ''}
                 </option>
               ))}
             </select>
